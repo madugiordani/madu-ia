@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Madu IA — Seu Guarda-Roupa Inteligente</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #F5ECD7; font-family: Georgia, serif; }
+  button:hover { opacity: .88; }
+  textarea:focus, input:focus { outline: none; }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-thumb { background: #EDE0C8; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100%{opacity:.3;transform:scale(.8)} 50%{opacity:1;transform:scale(1)} }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useRef, useEffect } = React;
+
+// ── Storage (localStorage para versão standalone) ──────────────────────
+const loadStorage = (key) => {
+  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; }
+  catch { return null; }
+};
+const saveStorage = (key, val) => {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+};
+
+// ── Cores ──────────────────────────────────────────────────────────────
+const C = {
+  marrom: "#4A2C17", marromDark: "#2C1A0E", marromMed: "#6B3A1F",
+  caramelo: "#8B4E1E", caramelo2: "#C4844A", caramelo3: "#E8B07A",
+  bege: "#F5ECD7", begeCard: "#EDE0C8", begeDark: "#DDD0BC",
+  cinza: "#9C8166", branco: "#FFFFFF",
+};
+
+const DEFAULT_BOARDS = [
+  { id: "trabalho",   name: "Trabalho",        icon: "💼", items: [] },
+  { id: "social",     name: "Social & Eventos", icon: "✨", items: [] },
+  { id: "casual",     name: "Casual / Dia a dia",icon: "☀️", items: [] },
+  { id: "inspiracao", name: "Inspiração",       icon: "🌿", items: [] },
+];
+
+const STYLE_QUESTIONS = [
+  { id: "ocasioes",     q: "Para quais ocasiões você mais se veste?",     opts: ["Trabalho / Corporativo","Casual / Dia a dia","Social / Eventos","Academia / Ativo","Misto de tudo"], multi: true },
+  { id: "personalidade",q: "Como você descreveria seu estilo ideal?",      opts: ["Clássico e atemporal","Moderno e estruturado","Despojado e confortável","Ousado e marcante","Romântico e delicado"], multi: false },
+  { id: "evita",        q: "O que você geralmente evita?",                 opts: ["Estampas muito chamativas","Peças muito estruturadas","Roupas muito justas","Peças muito largas","Cores muito neutras"], multi: true },
+  { id: "orcamento",    q: "Sua faixa de investimento por peça?",          opts: ["Até R$100","R$100–R$300","R$300–R$600","R$600–R$1.000","Acima de R$1.000"], multi: false },
+  { id: "cores",        q: "Quais tons te atraem mais?",                   opts: ["Neutros (preto, branco, bege)","Terrosos (marrom, caramelo, caqui)","Frios (azul, verde, cinza)","Quentes (vermelho, laranja, amarelo)","Pastéis e suaves"], multi: true },
+];
+
+// ── Prompts ────────────────────────────────────────────────────────────
+const systemPromptChat = (profile) => `Você é a assistente de moda do Método Madu de @dudagiordanii. Ajuda mulheres a encontrarem peças e looks alinhados com sua identidade.
+
+PERFIL:
+- Ocasiões: ${profile?.ocasioes?.join(", ") || "variadas"}
+- Estilo: ${profile?.personalidade || "não definido"}
+- Evita: ${profile?.evita?.join(", ") || "nada específico"}
+- Orçamento: ${profile?.orcamento || "flexível"}
+- Cores: ${profile?.cores?.join(", ") || "variadas"}
+
+Responda com:
+1. Breve análise do pedido à luz do perfil
+2. 3–5 sugestões de peças REAIS com: nome, marca/loja, preço estimado, por que combina
+3. Uma dica de estilo no espírito do Método Madu
+Tom: íntimo, como uma amiga entendida. Nunca genérico.`;
+
+const systemPromptLooks = (profile, ctx) => `Você é a curadoria visual do Método Madu. Gere looks para a cliente.
+
+PERFIL:
+- Estilo: ${profile?.personalidade || "variado"}
+- Ocasiões: ${profile?.ocasioes?.join(", ") || "variadas"}
+- Evita: ${profile?.evita?.join(", ") || "nada específico"}
+- Cores: ${profile?.cores?.join(", ") || "variadas"}
+- Orçamento: ${profile?.orcamento || "flexível"}
+${ctx ? `- Contexto: ${ctx}` : ""}
+
+RESPONDA APENAS EM JSON válido, sem markdown:
+{"looks":[{"title":"Nome do look","description":"Descrição curta (2 linhas)","pecas":["Peça 1 + onde encontrar","Peça 2 + onde encontrar","Peça 3 + onde encontrar"],"searchQuery":"1 a 3 palavras em inglês para buscar no Unsplash (ex: blazer, casual dress, elegant outfit)","tags":["tag1","tag2","tag3"],"why":"Por que combina com o perfil (1 frase)"}]}
+Gere exatamente 6 looks. searchQuery: apenas 1-3 palavras simples em inglês.`;
+
+// ── API Claude ─────────────────────────────────────────────────────────
+const callClaude = async (system, messages, useSearch = false) => {
+  const body = {
+    model: "claude-sonnet-4-20250514",
+    max_tokens: 1000,
+    system,
+    messages,
+  };
+  if (useSearch) body.tools = [{ type: "web_search_20250305", name: "web_search" }];
+  const res = await fetch("/.netlify/functions/claude", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  return data.content?.filter(b => b.type === "text").map(b => b.text).join("\n") || "";
+};
+
+const getImageUrl = (searchQuery) => {
+  if (!searchQuery) return null;
+  const q = encodeURIComponent(searchQuery + " fashion");
+  return `https://source.unsplash.com/400x500/?${q}`;
+};
+
+// ── Components ─────────────────────────────────────────────────────────
+const Logo = ({ small }) => (
+  <div style={{ display:"flex", alignItems:"center", gap: small ? 8 : 12 }}>
+    <div style={{ width: small?28:36, height: small?28:36, background: C.caramelo, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Georgia,serif", fontSize: small?13:16, fontWeight:"bold", color: C.bege, flexShrink:0 }}>M</div>
+    <div>
+      <div style={{ fontFamily:"Georgia,serif", fontSize: small?11:14, fontWeight:"bold", color: C.marrom, letterSpacing:2 }}>MÉTODO MADU</div>
+      {!small && <div style={{ fontFamily:"Georgia,serif", fontSize:9, color: C.cinza, letterSpacing:1, fontStyle:"italic" }}>seu guarda-roupa inteligente</div>}
+    </div>
+  </div>
+);
+
+const Pill = ({ label, selected, onClick }) => (
+  <button onClick={onClick} style={{ padding:"7px 14px", border:`1.5px solid ${selected ? C.caramelo : C.begeCard}`, background: selected ? C.caramelo : C.branco, color: selected ? C.branco : C.marrom, fontFamily:"Georgia,serif", fontSize:11, cursor:"pointer", borderRadius:2, transition:"all .2s" }}>{label}</button>
+);
+
+// ── ONBOARDING ─────────────────────────────────────────────────────────
+const Onboarding = ({ onComplete }) => {
+  const [step, setStep] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const q = STYLE_QUESTIONS[step];
+
+  const toggle = (opt) => {
+    if (q.multi) {
+      const cur = answers[q.id] || [];
+      setAnswers({ ...answers, [q.id]: cur.includes(opt) ? cur.filter(x => x !== opt) : [...cur, opt] });
+    } else setAnswers({ ...answers, [q.id]: opt });
+  };
+
+  const canNext = q.multi ? (answers[q.id] || []).length > 0 : !!answers[q.id];
+
+  return (
+    <div style={{ minHeight:"100vh", background: C.bege, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24 }}>
+      <div style={{ width:"100%", maxWidth:540 }}>
+        <Logo />
+        <div style={{ marginTop:40 }}>
+          <div style={{ display:"flex", gap:5, marginBottom:28 }}>
+            {STYLE_QUESTIONS.map((_,i) => <div key={i} style={{ flex:1, height:3, background: i<=step ? C.caramelo : C.begeCard, transition:"background .3s" }} />)}
+          </div>
+          <div style={{ fontSize:10, color: C.cinza, letterSpacing:2, marginBottom:10, fontFamily:"Arial,sans-serif", fontWeight:"bold" }}>PERGUNTA {step+1} DE {STYLE_QUESTIONS.length}</div>
+          <h2 style={{ fontSize:20, color: C.marrom, lineHeight:1.45, marginBottom:24, fontWeight:"normal" }}>{q.q}</h2>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:28 }}>
+            {q.opts.map(opt => <Pill key={opt} label={opt} selected={q.multi ? (answers[q.id]||[]).includes(opt) : answers[q.id]===opt} onClick={() => toggle(opt)} />)}
+          </div>
+          {q.multi && <div style={{ fontSize:10, color: C.cinza, marginBottom:16 }}>Você pode escolher mais de uma opção</div>}
+        </div>
+        <button onClick={() => step < STYLE_QUESTIONS.length-1 ? setStep(step+1) : onComplete(answers)} disabled={!canNext}
+          style={{ width:"100%", padding:16, background: canNext ? C.marrom : C.begeCard, color: canNext ? C.bege : C.cinza, border:"none", fontFamily:"Georgia,serif", fontSize:13, letterSpacing:2, cursor: canNext ? "pointer" : "default" }}>
+          {step < STYLE_QUESTIONS.length-1 ? "CONTINUAR →" : "CRIAR MEU PERFIL →"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ── LOOK CARD ──────────────────────────────────────────────────────────
+const LookCard = ({ look, boards, onSave, saved }) => {
+  const [showSave, setShowSave] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const imgSrc = getImageUrl(look.searchQuery);
+
+  return (
+    <div style={{ background: C.branco, border:`1px solid ${C.begeCard}`, overflow:"hidden", position:"relative" }}
+      onMouseEnter={() => setShowSave(true)} onMouseLeave={() => setShowSave(false)}>
+      <div style={{ height:240, background:`linear-gradient(135deg, ${C.begeCard}, ${C.begeDark})`, position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center" }}>
+        {!imgLoaded && !imgError && (
+          <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:8 }}>
+            <div style={{ width:22, height:22, border:`2px solid ${C.begeCard}`, borderTop:`2px solid ${C.caramelo}`, borderRadius:"50%", animation:"spin 1s linear infinite" }} />
+            <div style={{ fontSize:10, color: C.cinza, fontStyle:"italic" }}>buscando look...</div>
+          </div>
+        )}
+        {imgSrc && !imgError ? (
+          <img src={imgSrc} alt={look.title}
+            style={{ width:"100%", height:"100%", objectFit:"cover", opacity: imgLoaded ? 1 : 0, transition:"opacity .3s" }}
+            onLoad={() => setImgLoaded(true)}
+            onError={() => { setImgError(true); setImgLoaded(true); }} />
+        ) : imgError ? (
+          <div style={{ textAlign:"center", padding:16 }}>
+            <div style={{ fontSize:28, marginBottom:8 }}>👗</div>
+            <div style={{ fontFamily:"Georgia,serif", fontSize:11, color: C.cinza, fontStyle:"italic" }}>{look.title}</div>
+          </div>
+        ) : null}
+
+        {showSave && (
+          <div style={{ position:"absolute", inset:0, background:"rgba(74,44,23,.65)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <div style={{ background: C.branco, width:160, borderRadius:2, overflow:"hidden" }}>
+              <div style={{ fontSize:9, color: C.cinza, letterSpacing:2, fontFamily:"Arial,sans-serif", fontWeight:"bold", padding:"8px 12px 6px", borderBottom:`1px solid ${C.begeCard}` }}>SALVAR EM</div>
+              {boards.map(b => (
+                <button key={b.id} onClick={() => { onSave(b.id, look); setShowSave(false); }}
+                  style={{ display:"block", width:"100%", padding:"8px 12px", textAlign:"left", border:"none", background:"none", fontFamily:"Georgia,serif", fontSize:12, color: C.marrom, cursor:"pointer", borderBottom:`1px solid ${C.begeCard}` }}>
+                  {b.icon} {b.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {saved && <div style={{ position:"absolute", top:8, right:8, background: C.caramelo, color: C.branco, fontSize:9, padding:"3px 7px", fontFamily:"Arial,sans-serif", letterSpacing:1 }}>SALVO</div>}
+      </div>
+      <div style={{ padding:"12px 14px" }}>
+        <div style={{ fontFamily:"Georgia,serif", fontSize:13, fontWeight:"bold", color: C.marrom, marginBottom:4 }}>{look.title}</div>
+        <div style={{ fontFamily:"Georgia,serif", fontSize:11, color: C.cinza, lineHeight:1.5, marginBottom:6, fontStyle:"italic" }}>{look.description}</div>
+        <div style={{ fontFamily:"Georgia,serif", fontSize:10, color: C.caramelo, fontStyle:"italic", marginBottom:8 }}>{look.why}</div>
+        <div style={{ fontSize:10, color: C.cinza, lineHeight:1.6 }}>
+          {(look.pecas||[]).map((p,i) => <div key={i}>· {p}</div>)}
+        </div>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:8 }}>
+          {(look.tags||[]).map(t => <span key={t} style={{ fontSize:9, color: C.cinza, background: C.bege, padding:"2px 7px", fontFamily:"Arial,sans-serif" }}>#{t}</span>)}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const BoardItem = ({ look, onRemove }) => {
+  const [imgError, setImgError] = useState(false);
+  const imgSrc = getImageUrl(look.searchQuery);
+  return (
+    <div style={{ background: C.branco, border:`1px solid ${C.begeCard}`, overflow:"hidden", position:"relative" }}>
+      <div style={{ height:140, background:`linear-gradient(135deg, ${C.begeCard}, ${C.begeDark})`, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+        {imgSrc && !imgError
+          ? <img src={imgSrc} alt={look.title} style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={() => setImgError(true)} />
+          : <div style={{ fontSize:24 }}>👗</div>}
+        <button onClick={() => onRemove(look)} style={{ position:"absolute", top:6, right:6, width:22, height:22, border:"none", background:"rgba(74,44,23,.7)", color: C.bege, cursor:"pointer", fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", borderRadius:"50%" }}>×</button>
+      </div>
+      <div style={{ padding:"8px 10px" }}>
+        <div style={{ fontFamily:"Georgia,serif", fontSize:11, fontWeight:"bold", color: C.marrom }}>{look.title}</div>
+        <div style={{ fontFamily:"Georgia,serif", fontSize:10, color: C.cinza, fontStyle:"italic", marginTop:2 }}>{(look.description||"").slice(0,50)}...</div>
+      </div>
+    </div>
+  );
+};
+
+// ── MAIN APP ───────────────────────────────────────────────────────────
+const App = () => {
+  const [screen, setScreen] = useState("loading");
+  const [profile, setProfile] = useState(null);
+  const [tab, setTab] = useState("assistente");
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const [looks, setLooks] = useState([]);
+  const [looksLoading, setLooksLoading] = useState(false);
+  const [looksContext, setLooksContext] = useState("");
+  const [boards, setBoards] = useState(DEFAULT_BOARDS);
+  const [activeBoard, setActiveBoard] = useState(null);
+  const [newBoardName, setNewBoardName] = useState("");
+  const [showNewBoard, setShowNewBoard] = useState(false);
+  const [savedIds, setSavedIds] = useState(new Set());
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    const p = loadStorage("madu-profile");
+    const b = loadStorage("madu-boards");
+    const m = loadStorage("madu-messages");
+    if (p) setProfile(p);
+    if (b) setBoards(b);
+    if (m) setMessages(m);
+    setScreen(p ? "app" : "onboarding");
+  }, []);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:"smooth" }); }, [messages, chatLoading]);
+
+  const completeOnboarding = (answers) => {
+    setProfile(answers);
+    saveStorage("madu-profile", answers);
+    const welcome = { role:"assistant", content:`Perfil criado! 🤎\n\nJá conheço seu estilo — ${answers.personalidade?.toLowerCase()}, com preferência por ${(answers.cores||[]).join(" e ").toLowerCase() || "tons variados"}.\n\nO que você está procurando hoje?` };
+    setMessages([welcome]);
+    saveStorage("madu-messages", [welcome]);
+    setScreen("app");
+  };
+
+  const sendChat = async (text) => {
+    const msg = text || input.trim();
+    if (!msg || chatLoading) return;
+    setInput("");
+    const newMsgs = [...messages, { role:"user", content:msg }];
+    setMessages(newMsgs);
+    setChatLoading(true);
+    try {
+      const resp = await callClaude(systemPromptChat(profile), newMsgs.map(m => ({ role:m.role, content:m.content })), true);
+      const updated = [...newMsgs, { role:"assistant", content:resp }];
+      setMessages(updated);
+      saveStorage("madu-messages", updated);
+    } catch {
+      setMessages([...newMsgs, { role:"assistant", content:"Ops, tive um problema. Tente novamente." }]);
+    } finally { setChatLoading(false); }
+  };
+
+  const generateLooks = async () => {
+    setLooksLoading(true);
+    setLooks([]);
+    try {
+      const raw = await callClaude(systemPromptLooks(profile, looksContext), [{ role:"user", content: looksContext || "Gere looks variados para o meu perfil de estilo." }]);
+      const clean = raw.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(clean);
+      const looksWithId = (parsed.looks||[]).map(l => ({ ...l, id: Date.now() + Math.random() }));
+      setLooks(looksWithId);
+    } catch(e) { console.error(e); }
+    finally { setLooksLoading(false); }
+  };
+
+  const saveLook = (boardId, look) => {
+    const updated = boards.map(b => b.id === boardId ? { ...b, items:[...b.items, look] } : b);
+    setBoards(updated);
+    setSavedIds(new Set([...savedIds, look.id]));
+    saveStorage("madu-boards", updated);
+  };
+
+  const removeLook = (boardId, look) => {
+    const updated = boards.map(b => b.id === boardId ? { ...b, items: b.items.filter(i => i.id !== look.id) } : b);
+    setBoards(updated);
+    saveStorage("madu-boards", updated);
+  };
+
+  const createBoard = () => {
+    if (!newBoardName.trim()) return;
+    const nb = { id: Date.now().toString(), name: newBoardName.trim(), icon:"📁", items:[] };
+    const updated = [...boards, nb];
+    setBoards(updated);
+    saveStorage("madu-boards", updated);
+    setNewBoardName(""); setShowNewBoard(false);
+  };
+
+  if (screen === "loading") return <div style={{ minHeight:"100vh", background: C.bege, display:"flex", alignItems:"center", justifyContent:"center" }}><Logo /></div>;
+  if (screen === "onboarding") return <Onboarding onComplete={completeOnboarding} />;
+
+  const currentBoard = boards.find(b => b.id === activeBoard);
+
+  return (
+    <div style={{ minHeight:"100vh", background: C.bege, display:"flex", flexDirection:"column" }}>
+
+      {/* Header */}
+      <div style={{ background: C.branco, borderBottom:`1px solid ${C.begeCard}`, padding:"12px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, zIndex:20 }}>
+        <Logo small />
+        <div style={{ display:"flex", gap:4 }}>
+          {[["assistente","💬 Assistente"],["looks","✨ Looks"],["boards","📌 Boards"]].map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)}
+              style={{ padding:"7px 14px", border:"none", background: tab===id ? C.marrom : "none", color: tab===id ? C.bege : C.cinza, fontFamily:"Georgia,serif", fontSize:11, cursor:"pointer", borderRadius:2, letterSpacing:.5 }}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => setScreen("onboarding")} style={{ fontSize:10, color: C.cinza, background:"none", border:"none", cursor:"pointer", fontFamily:"Georgia,serif", textDecoration:"underline" }}>editar perfil</button>
+      </div>
+
+      {/* ── ASSISTENTE ── */}
+      {tab === "assistente" && (
+        <div style={{ flex:1, display:"flex", flexDirection:"column" }}>
+          <div style={{ flex:1, overflowY:"auto", padding:"20px", maxWidth:700, width:"100%", margin:"0 auto" }}>
+            <div style={{ background: C.begeCard, borderLeft:`3px solid ${C.caramelo}`, padding:"10px 14px", marginBottom:16 }}>
+              <div style={{ fontSize:10, color: C.caramelo, letterSpacing:2, fontFamily:"Arial,sans-serif", fontWeight:"bold" }}>
+                SEU PERFIL · {profile?.personalidade} · {profile?.orcamento}
+              </div>
+            </div>
+
+            {messages.map((msg, i) => (
+              <div key={i} style={{ display:"flex", justifyContent: msg.role==="user" ? "flex-end" : "flex-start", marginBottom:14, gap:8, alignItems:"flex-start" }}>
+                {msg.role === "assistant" && <div style={{ width:26, height:26, minWidth:26, background: C.caramelo, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Georgia,serif", fontSize:11, fontWeight:"bold", color: C.bege }}>M</div>}
+                <div style={{ maxWidth:"78%", background: msg.role==="user" ? C.marrom : C.branco, color: msg.role==="user" ? C.bege : C.marrom, padding:"12px 16px", fontFamily:"Georgia,serif", fontSize:12.5, lineHeight:1.7, border: msg.role!=="user" ? `1px solid ${C.begeCard}` : "none", whiteSpace:"pre-wrap" }}>
+                  {msg.content}
+                </div>
+              </div>
+            ))}
+
+            {chatLoading && (
+              <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:14 }}>
+                <div style={{ width:26, height:26, background: C.caramelo, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Georgia,serif", fontSize:11, fontWeight:"bold", color: C.bege }}>M</div>
+                <div style={{ background: C.branco, padding:"12px 16px", border:`1px solid ${C.begeCard}`, display:"flex", gap:4 }}>
+                  {[0,1,2].map(i => <div key={i} style={{ width:5, height:5, borderRadius:"50%", background: C.caramelo, animation:`pulse 1.2s ${i*.2}s infinite` }} />)}
+                </div>
+              </div>
+            )}
+
+            {messages.length === 1 && !chatLoading && (
+              <div style={{ marginTop:8 }}>
+                <div style={{ fontSize:9, color: C.cinza, letterSpacing:2, marginBottom:10, fontFamily:"Arial,sans-serif", fontWeight:"bold" }}>SUGESTÕES</div>
+                {["Quero uma calça elegante para o trabalho","Me ajuda com um look para evento social","Quero renovar meu básico","Preciso de um blazer versátil"].map(s => (
+                  <button key={s} onClick={() => sendChat(s)}
+                    style={{ display:"block", width:"100%", background: C.branco, border:`1px solid ${C.begeCard}`, borderLeft:`3px solid ${C.caramelo2}`, padding:"10px 14px", textAlign:"left", fontFamily:"Georgia,serif", fontSize:12, color: C.marrom, cursor:"pointer", marginBottom:6 }}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div ref={bottomRef} />
+          </div>
+
+          <div style={{ background: C.branco, borderTop:`1px solid ${C.begeCard}`, padding:"14px 20px", position:"sticky", bottom:0 }}>
+            <div style={{ maxWidth:700, margin:"0 auto", display:"flex", gap:10, alignItems:"flex-end" }}>
+              <textarea value={input} onChange={e => setInput(e.target.value)}
+                onKeyDown={e => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
+                placeholder="O que você está procurando?" rows={2}
+                style={{ flex:1, border:`1.5px solid ${C.begeCard}`, padding:"10px 14px", fontFamily:"Georgia,serif", fontSize:12.5, color: C.marrom, background: C.bege, resize:"none", lineHeight:1.5 }} />
+              <button onClick={() => sendChat()} disabled={!input.trim() || chatLoading}
+                style={{ padding:"10px 18px", height:52, background: input.trim() && !chatLoading ? C.marrom : C.begeCard, color: input.trim() && !chatLoading ? C.bege : C.cinza, border:"none", fontFamily:"Georgia,serif", fontSize:12, letterSpacing:1, cursor: input.trim() && !chatLoading ? "pointer" : "default", whiteSpace:"nowrap" }}>
+                {chatLoading ? "..." : "BUSCAR →"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── LOOKS ── */}
+      {tab === "looks" && (
+        <div style={{ flex:1, overflowY:"auto", padding:20, maxWidth:900, width:"100%", margin:"0 auto" }}>
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontSize:18, fontWeight:"bold", color: C.marrom, marginBottom:4 }}>Curadoria de Looks</div>
+            <div style={{ fontSize:12, color: C.cinza, fontStyle:"italic" }}>Looks gerados especialmente para o seu perfil de estilo</div>
+          </div>
+          <div style={{ display:"flex", gap:10, marginBottom:20, alignItems:"flex-end" }}>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:9, color: C.cinza, letterSpacing:2, fontFamily:"Arial,sans-serif", fontWeight:"bold", marginBottom:6 }}>CONTEXTO (OPCIONAL)</div>
+              <input value={looksContext} onChange={e => setLooksContext(e.target.value)}
+                placeholder="ex: looks para trabalho, evento de casamento, fim de semana..."
+                style={{ width:"100%", border:`1.5px solid ${C.begeCard}`, padding:"10px 14px", fontFamily:"Georgia,serif", fontSize:12, color: C.marrom, background: C.branco }} />
+            </div>
+            <button onClick={generateLooks} disabled={looksLoading}
+              style={{ padding:"10px 20px", height:42, background: looksLoading ? C.begeCard : C.marrom, color: looksLoading ? C.cinza : C.bege, border:"none", fontFamily:"Georgia,serif", fontSize:12, letterSpacing:1, cursor: looksLoading ? "default" : "pointer", whiteSpace:"nowrap" }}>
+              {looksLoading ? "GERANDO..." : "✨ GERAR LOOKS"}
+            </button>
+          </div>
+
+          {looksLoading && (
+            <div style={{ textAlign:"center", padding:"60px 0" }}>
+              <div style={{ width:32, height:32, border:`3px solid ${C.begeCard}`, borderTop:`3px solid ${C.caramelo}`, borderRadius:"50%", animation:"spin 1s linear infinite", margin:"0 auto 16px" }} />
+              <div style={{ fontFamily:"Georgia,serif", fontSize:13, color: C.cinza, fontStyle:"italic" }}>Criando looks para o seu perfil...</div>
+            </div>
+          )}
+
+          {looks.length > 0 && (
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(240px, 1fr))", gap:16 }}>
+              {looks.map(look => <LookCard key={look.id} look={look} boards={boards} onSave={saveLook} saved={savedIds.has(look.id)} />)}
+            </div>
+          )}
+
+          {looks.length === 0 && !looksLoading && (
+            <div style={{ textAlign:"center", padding:"60px 20px", border:`2px dashed ${C.begeCard}` }}>
+              <div style={{ fontSize:36, marginBottom:12 }}>✨</div>
+              <div style={{ fontFamily:"Georgia,serif", fontSize:14, color: C.marrom, marginBottom:6 }}>Sua curadoria personalizada</div>
+              <div style={{ fontFamily:"Georgia,serif", fontSize:12, color: C.cinza, fontStyle:"italic" }}>Clique em "Gerar Looks" para ver looks criados para o seu perfil</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── BOARDS ── */}
+      {tab === "boards" && (
+        <div style={{ flex:1, overflowY:"auto", padding:20, maxWidth:900, width:"100%", margin:"0 auto" }}>
+          {!activeBoard ? (
+            <>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end", marginBottom:20 }}>
+                <div>
+                  <div style={{ fontSize:18, fontWeight:"bold", color: C.marrom, marginBottom:4 }}>Meus Boards</div>
+                  <div style={{ fontSize:12, color: C.cinza, fontStyle:"italic" }}>Suas coleções de looks favoritos</div>
+                </div>
+                <button onClick={() => setShowNewBoard(!showNewBoard)}
+                  style={{ padding:"8px 16px", background: C.caramelo, color: C.branco, border:"none", fontFamily:"Georgia,serif", fontSize:11, letterSpacing:1, cursor:"pointer" }}>
+                  + NOVA PASTA
+                </button>
+              </div>
+
+              {showNewBoard && (
+                <div style={{ display:"flex", gap:10, marginBottom:20 }}>
+                  <input value={newBoardName} onChange={e => setNewBoardName(e.target.value)}
+                    onKeyDown={e => e.key==="Enter" && createBoard()}
+                    placeholder="Nome da pasta..." autoFocus
+                    style={{ flex:1, border:`1.5px solid ${C.caramelo}`, padding:"10px 14px", fontFamily:"Georgia,serif", fontSize:12, color: C.marrom, background: C.branco }} />
+                  <button onClick={createBoard} style={{ padding:"10px 16px", background: C.marrom, color: C.bege, border:"none", fontFamily:"Georgia,serif", fontSize:12, cursor:"pointer" }}>CRIAR</button>
+                  <button onClick={() => setShowNewBoard(false)} style={{ padding:"10px 16px", background:"none", color: C.cinza, border:`1px solid ${C.begeCard}`, fontFamily:"Georgia,serif", fontSize:12, cursor:"pointer" }}>CANCELAR</button>
+                </div>
+              )}
+
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px, 1fr))", gap:14 }}>
+                {boards.map(board => (
+                  <button key={board.id} onClick={() => setActiveBoard(board.id)}
+                    style={{ background: C.branco, border:`1px solid ${C.begeCard}`, padding:0, cursor:"pointer", textAlign:"left", overflow:"hidden" }}>
+                    <div style={{ height:100, background:`linear-gradient(135deg, ${C.begeCard}, ${C.begeDark})`, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
+                      {board.items.length > 0 ? (
+                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:2, width:"100%", height:"100%" }}>
+                          {board.items.slice(0,4).map((item,i) => (
+                            <div key={i} style={{ background: C.begeDark, overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                              {item.searchQuery
+                                ? <img src={getImageUrl(item.searchQuery)} style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e => e.target.style.display="none"} />
+                                : <span style={{ fontSize:16 }}>👗</span>}
+                            </div>
+                          ))}
+                        </div>
+                      ) : <div style={{ fontSize:32 }}>{board.icon}</div>}
+                      <div style={{ position:"absolute", bottom:6, right:8, fontSize:9, color: C.cinza, fontFamily:"Arial,sans-serif", background:"rgba(245,236,215,.85)", padding:"2px 6px" }}>{board.items.length} looks</div>
+                    </div>
+                    <div style={{ padding:"10px 12px" }}>
+                      <div style={{ fontFamily:"Georgia,serif", fontSize:13, fontWeight:"bold", color: C.marrom }}>{board.icon} {board.name}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
+                <button onClick={() => setActiveBoard(null)} style={{ background:"none", border:"none", color: C.caramelo, cursor:"pointer", fontFamily:"Georgia,serif", fontSize:13, textDecoration:"underline" }}>← Boards</button>
+                <div style={{ fontSize:18, fontWeight:"bold", color: C.marrom }}>{currentBoard?.icon} {currentBoard?.name}</div>
+                <div style={{ fontSize:11, color: C.cinza, fontStyle:"italic" }}>{currentBoard?.items.length || 0} looks salvos</div>
+              </div>
+              {currentBoard?.items.length === 0 ? (
+                <div style={{ textAlign:"center", padding:"50px 20px", border:`2px dashed ${C.begeCard}` }}>
+                  <div style={{ fontSize:32, marginBottom:12 }}>{currentBoard?.icon}</div>
+                  <div style={{ fontFamily:"Georgia,serif", fontSize:14, color: C.marrom, marginBottom:6 }}>Pasta vazia</div>
+                  <div style={{ fontFamily:"Georgia,serif", fontSize:12, color: C.cinza, fontStyle:"italic", marginBottom:16 }}>Vá para a aba Looks e salve suas inspirações favoritas</div>
+                  <button onClick={() => setTab("looks")} style={{ padding:"10px 20px", background: C.marrom, color: C.bege, border:"none", fontFamily:"Georgia,serif", fontSize:12, cursor:"pointer", letterSpacing:1 }}>✨ VER LOOKS</button>
+                </div>
+              ) : (
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(180px, 1fr))", gap:12 }}>
+                  {currentBoard.items.map((look,i) => <BoardItem key={i} look={look} onRemove={(l) => removeLook(activeBoard, l)} />)}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+ReactDOM.render(<App />, document.getElementById("root"));
+</script>
+</body>
+</html>
