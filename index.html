@@ -1,541 +1,650 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Madu IA — Seu Guarda-Roupa Inteligente</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #F5ECD7; font-family: Georgia, serif; }
-  button:hover { opacity: .88; }
-  textarea:focus, input:focus { outline: none; }
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-thumb { background: #EDE0C8; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  @keyframes pulse { 0%,100%{opacity:.3;transform:scale(.8)} 50%{opacity:1;transform:scale(1)} }
-  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #F5ECD7; font-family: Georgia, serif; min-height: 100vh; }
+button { cursor: pointer; }
+button:hover { opacity: .88; }
+input:focus, textarea:focus { outline: none; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: #EDE0C8; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%,100%{opacity:.3;transform:scale(.8)} 50%{opacity:1;transform:scale(1)} }
+
+/* NAV */
+#nav { background:#fff; border-bottom:1px solid #EDE0C8; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:20; }
+.logo { display:flex; align-items:center; gap:10px; }
+.logo-m { width:32px; height:32px; background:#8B4E1E; display:flex; align-items:center; justify-content:center; font-family:Georgia,serif; font-size:15px; font-weight:bold; color:#F5ECD7; }
+.logo-title { font-family:Georgia,serif; font-size:13px; font-weight:bold; color:#4A2C17; letter-spacing:2px; }
+.tabs { display:flex; gap:4px; }
+.tab { padding:7px 14px; border:none; background:none; color:#9C8166; font-family:Georgia,serif; font-size:11px; letter-spacing:.5px; transition:all .2s; border-radius:2px; }
+.tab.active { background:#4A2C17; color:#F5ECD7; }
+#edit-profile { font-size:10px; color:#9C8166; background:none; border:none; font-family:Georgia,serif; text-decoration:underline; }
+
+/* ONBOARDING */
+#onboarding { min-height:100vh; background:#F5ECD7; display:flex; align-items:center; justify-content:center; padding:24px; }
+.onboard-inner { width:100%; max-width:540px; }
+.progress { display:flex; gap:5px; margin-bottom:28px; }
+.prog-bar { flex:1; height:3px; background:#EDE0C8; transition:background .3s; }
+.prog-bar.done { background:#8B4E1E; }
+.step-label { font-size:10px; color:#9C8166; letter-spacing:2px; margin-bottom:10px; font-family:Arial,sans-serif; font-weight:bold; }
+.step-q { font-size:20px; color:#4A2C17; line-height:1.45; margin-bottom:24px; font-weight:normal; }
+.pills { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:28px; }
+.pill { padding:7px 14px; border:1.5px solid #EDE0C8; background:#fff; color:#4A2C17; font-family:Georgia,serif; font-size:11px; transition:all .2s; border-radius:2px; }
+.pill.selected { background:#8B4E1E; border-color:#8B4E1E; color:#fff; }
+.multi-hint { font-size:10px; color:#9C8166; margin-bottom:16px; }
+.btn-next { width:100%; padding:16px; background:#4A2C17; color:#F5ECD7; border:none; font-family:Georgia,serif; font-size:13px; letter-spacing:2px; transition:all .2s; }
+.btn-next:disabled { background:#EDE0C8; color:#9C8166; cursor:default; }
+
+/* PROFILE STRIP */
+#profile-strip { background:#EDE0C8; border-left:3px solid #8B4E1E; padding:10px 14px; margin:16px; border-radius:1px; font-size:10px; color:#8B4E1E; letter-spacing:2px; font-family:Arial,sans-serif; font-weight:bold; }
+
+/* CHAT */
+#chat-area { flex:1; overflow-y:auto; padding:0 16px 16px; max-width:700px; width:100%; margin:0 auto; }
+.msg { display:flex; margin-bottom:14px; gap:8px; align-items:flex-start; }
+.msg.user { justify-content:flex-end; }
+.msg-avatar { width:26px; height:26px; min-width:26px; background:#8B4E1E; display:flex; align-items:center; justify-content:center; font-family:Georgia,serif; font-size:11px; font-weight:bold; color:#F5ECD7; }
+.msg-bubble { max-width:78%; padding:12px 16px; font-family:Georgia,serif; font-size:12.5px; line-height:1.7; white-space:pre-wrap; }
+.msg.user .msg-bubble { background:#4A2C17; color:#F5ECD7; }
+.msg.assistant .msg-bubble { background:#fff; color:#4A2C17; border:1px solid #EDE0C8; }
+.typing { display:flex; gap:4px; align-items:center; padding:12px 16px; background:#fff; border:1px solid #EDE0C8; }
+.dot { width:5px; height:5px; border-radius:50%; background:#8B4E1E; }
+
+/* SUGGESTIONS */
+#suggestions { margin-top:8px; }
+.sug-label { font-size:9px; color:#9C8166; letter-spacing:2px; margin-bottom:10px; font-family:Arial,sans-serif; font-weight:bold; }
+.sug-btn { display:block; width:100%; background:#fff; border:1px solid #EDE0C8; border-left:3px solid #C4844A; padding:10px 14px; text-align:left; font-family:Georgia,serif; font-size:12px; color:#4A2C17; margin-bottom:6px; }
+
+/* INPUT */
+#chat-input-area { background:#fff; border-top:1px solid #EDE0C8; padding:14px 16px; position:sticky; bottom:0; }
+.input-row { max-width:700px; margin:0 auto; display:flex; gap:10px; align-items:flex-end; }
+#chat-input { flex:1; border:1.5px solid #EDE0C8; padding:10px 14px; font-family:Georgia,serif; font-size:12.5px; color:#4A2C17; background:#F5ECD7; resize:none; line-height:1.5; }
+#send-btn { padding:10px 18px; height:52px; background:#4A2C17; color:#F5ECD7; border:none; font-family:Georgia,serif; font-size:12px; letter-spacing:1px; white-space:nowrap; transition:all .2s; }
+#send-btn:disabled { background:#EDE0C8; color:#9C8166; cursor:default; }
+
+/* LOOKS */
+#looks-area { flex:1; overflow-y:auto; padding:16px; max-width:900px; width:100%; margin:0 auto; }
+.looks-header h2 { font-size:18px; font-weight:bold; color:#4A2C17; margin-bottom:4px; }
+.looks-header p { font-size:12px; color:#9C8166; font-style:italic; margin-bottom:16px; }
+.looks-ctx-row { display:flex; gap:10px; margin-bottom:20px; align-items:flex-end; }
+.ctx-label { font-size:9px; color:#9C8166; letter-spacing:2px; font-family:Arial,sans-serif; font-weight:bold; margin-bottom:6px; }
+#looks-ctx { flex:1; border:1.5px solid #EDE0C8; padding:10px 14px; font-family:Georgia,serif; font-size:12px; color:#4A2C17; background:#fff; }
+#gen-btn { padding:10px 20px; height:42px; background:#4A2C17; color:#F5ECD7; border:none; font-family:Georgia,serif; font-size:12px; letter-spacing:1px; white-space:nowrap; }
+#gen-btn:disabled { background:#EDE0C8; color:#9C8166; cursor:default; }
+.looks-spinner { text-align:center; padding:60px 0; }
+.spinner { width:32px; height:32px; border:3px solid #EDE0C8; border-top:3px solid #8B4E1E; border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 16px; }
+.looks-empty { text-align:center; padding:60px 20px; border:2px dashed #EDE0C8; }
+.looks-empty-icon { font-size:36px; margin-bottom:12px; }
+.looks-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px; }
+
+/* LOOK CARD */
+.look-card { background:#fff; border:1px solid #EDE0C8; overflow:hidden; position:relative; }
+.look-img { height:240px; background:linear-gradient(135deg,#EDE0C8,#DDD0BC); position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+.look-img img { width:100%; height:100%; object-fit:cover; transition:opacity .3s; }
+.look-img-loading { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; }
+.look-img-spinner { width:22px; height:22px; border:2px solid #EDE0C8; border-top:2px solid #8B4E1E; border-radius:50%; animation:spin 1s linear infinite; }
+.look-img-text { font-size:10px; color:#9C8166; font-style:italic; }
+.look-img-fallback { text-align:center; }
+.look-img-fallback span { font-size:28px; display:block; margin-bottom:6px; }
+.look-save-overlay { position:absolute; inset:0; background:rgba(74,44,23,.65); display:none; align-items:center; justify-content:center; }
+.look-card:hover .look-save-overlay { display:flex; }
+.save-menu { background:#fff; width:160px; border-radius:2px; overflow:hidden; }
+.save-menu-title { font-size:9px; color:#9C8166; letter-spacing:2px; font-family:Arial,sans-serif; font-weight:bold; padding:8px 12px 6px; border-bottom:1px solid #EDE0C8; }
+.save-menu-btn { display:block; width:100%; padding:8px 12px; text-align:left; border:none; background:none; font-family:Georgia,serif; font-size:12px; color:#4A2C17; border-bottom:1px solid #EDE0C8; }
+.look-saved-tag { position:absolute; top:8px; right:8px; background:#8B4E1E; color:#fff; font-size:9px; padding:3px 7px; font-family:Arial,sans-serif; letter-spacing:1px; }
+.look-body { padding:12px 14px; }
+.look-title { font-family:Georgia,serif; font-size:13px; font-weight:bold; color:#4A2C17; margin-bottom:4px; }
+.look-desc { font-family:Georgia,serif; font-size:11px; color:#9C8166; line-height:1.5; margin-bottom:6px; font-style:italic; }
+.look-why { font-family:Georgia,serif; font-size:10px; color:#8B4E1E; font-style:italic; margin-bottom:8px; }
+.look-pecas { font-size:10px; color:#9C8166; line-height:1.7; margin-bottom:8px; }
+.look-tags { display:flex; flex-wrap:wrap; gap:4px; }
+.look-tag { font-size:9px; color:#9C8166; background:#F5ECD7; padding:2px 7px; font-family:Arial,sans-serif; }
+
+/* BOARDS */
+#boards-area { flex:1; overflow-y:auto; padding:16px; max-width:900px; width:100%; margin:0 auto; }
+.boards-header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px; }
+.boards-header h2 { font-size:18px; font-weight:bold; color:#4A2C17; margin-bottom:4px; }
+.boards-header p { font-size:12px; color:#9C8166; font-style:italic; }
+.btn-new-board { padding:8px 16px; background:#8B4E1E; color:#fff; border:none; font-family:Georgia,serif; font-size:11px; letter-spacing:1px; }
+.new-board-row { display:flex; gap:10px; margin-bottom:20px; }
+#new-board-input { flex:1; border:1.5px solid #8B4E1E; padding:10px 14px; font-family:Georgia,serif; font-size:12px; color:#4A2C17; background:#fff; }
+.btn-create { padding:10px 16px; background:#4A2C17; color:#F5ECD7; border:none; font-family:Georgia,serif; font-size:12px; }
+.btn-cancel { padding:10px 16px; background:none; color:#9C8166; border:1px solid #EDE0C8; font-family:Georgia,serif; font-size:12px; }
+.boards-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
+.board-card { background:#fff; border:1px solid #EDE0C8; padding:0; text-align:left; overflow:hidden; transition:all .2s; }
+.board-thumb { height:100px; background:linear-gradient(135deg,#EDE0C8,#DDD0BC); display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden; }
+.board-thumb-grid { display:grid; grid-template-columns:1fr 1fr; gap:2px; width:100%; height:100%; }
+.board-thumb-cell { background:#DDD0BC; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+.board-thumb-cell img { width:100%; height:100%; object-fit:cover; }
+.board-count { position:absolute; bottom:6px; right:8px; font-size:9px; color:#9C8166; font-family:Arial,sans-serif; background:rgba(245,236,215,.85); padding:2px 6px; }
+.board-name { padding:10px 12px; font-family:Georgia,serif; font-size:13px; font-weight:bold; color:#4A2C17; }
+
+/* BOARD DETAIL */
+.board-back { background:none; border:none; color:#8B4E1E; font-family:Georgia,serif; font-size:13px; text-decoration:underline; margin-right:12px; }
+.board-detail-header { display:flex; align-items:center; margin-bottom:20px; }
+.board-detail-title { font-size:18px; font-weight:bold; color:#4A2C17; margin-right:8px; }
+.board-detail-count { font-size:11px; color:#9C8166; font-style:italic; }
+.board-empty { text-align:center; padding:50px 20px; border:2px dashed #EDE0C8; }
+.board-empty-icon { font-size:32px; margin-bottom:12px; }
+.board-empty h3 { font-family:Georgia,serif; font-size:14px; color:#4A2C17; margin-bottom:6px; }
+.board-empty p { font-family:Georgia,serif; font-size:12px; color:#9C8166; font-style:italic; margin-bottom:16px; }
+.btn-see-looks { padding:10px 20px; background:#4A2C17; color:#F5ECD7; border:none; font-family:Georgia,serif; font-size:12px; letter-spacing:1px; }
+.board-items-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; }
+.board-item { background:#fff; border:1px solid #EDE0C8; overflow:hidden; position:relative; }
+.board-item-img { height:140px; background:linear-gradient(135deg,#EDE0C8,#DDD0BC); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.board-item-img img { width:100%; height:100%; object-fit:cover; }
+.board-item-remove { position:absolute; top:6px; right:6px; width:22px; height:22px; border:none; background:rgba(74,44,23,.7); color:#F5ECD7; font-size:12px; display:flex; align-items:center; justify-content:center; border-radius:50%; }
+.board-item-body { padding:8px 10px; }
+.board-item-title { font-family:Georgia,serif; font-size:11px; font-weight:bold; color:#4A2C17; }
+.board-item-desc { font-family:Georgia,serif; font-size:10px; color:#9C8166; font-style:italic; margin-top:2px; }
+
+/* HIDDEN */
+.hidden { display:none !important; }
 </style>
 </head>
 <body>
-<div id="root"></div>
 
-<script type="text/babel">
-const { useState, useRef, useEffect } = React;
+<!-- ONBOARDING -->
+<div id="onboarding">
+  <div class="onboard-inner">
+    <div class="logo" style="margin-bottom:40px">
+      <div class="logo-m">M</div>
+      <div class="logo-title">MÉTODO MADU</div>
+    </div>
+    <div class="progress" id="progress"></div>
+    <div class="step-label" id="step-label"></div>
+    <div class="step-q" id="step-q"></div>
+    <div class="pills" id="pills"></div>
+    <div class="multi-hint hidden" id="multi-hint">Você pode escolher mais de uma opção</div>
+    <button class="btn-next" id="btn-next" disabled>CONTINUAR →</button>
+  </div>
+</div>
 
-// ── Storage (localStorage para versão standalone) ──────────────────────
-const loadStorage = (key) => {
-  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; }
-  catch { return null; }
-};
-const saveStorage = (key, val) => {
-  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
-};
+<!-- APP -->
+<div id="app" class="hidden" style="display:flex;flex-direction:column;min-height:100vh">
+  <div id="nav">
+    <div class="logo">
+      <div class="logo-m">M</div>
+      <div class="logo-title">MÉTODO MADU</div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('assistente')">💬 Assistente</button>
+      <button class="tab" onclick="showTab('looks')">✨ Looks</button>
+      <button class="tab" onclick="showTab('boards')">📌 Boards</button>
+    </div>
+    <button id="edit-profile" onclick="editProfile()">editar perfil</button>
+  </div>
 
-// ── Cores ──────────────────────────────────────────────────────────────
-const C = {
-  marrom: "#4A2C17", marromDark: "#2C1A0E", marromMed: "#6B3A1F",
-  caramelo: "#8B4E1E", caramelo2: "#C4844A", caramelo3: "#E8B07A",
-  bege: "#F5ECD7", begeCard: "#EDE0C8", begeDark: "#DDD0BC",
-  cinza: "#9C8166", branco: "#FFFFFF",
-};
-
-const DEFAULT_BOARDS = [
-  { id: "trabalho",   name: "Trabalho",        icon: "💼", items: [] },
-  { id: "social",     name: "Social & Eventos", icon: "✨", items: [] },
-  { id: "casual",     name: "Casual / Dia a dia",icon: "☀️", items: [] },
-  { id: "inspiracao", name: "Inspiração",       icon: "🌿", items: [] },
-];
-
-const STYLE_QUESTIONS = [
-  { id: "ocasioes",     q: "Para quais ocasiões você mais se veste?",     opts: ["Trabalho / Corporativo","Casual / Dia a dia","Social / Eventos","Academia / Ativo","Misto de tudo"], multi: true },
-  { id: "personalidade",q: "Como você descreveria seu estilo ideal?",      opts: ["Clássico e atemporal","Moderno e estruturado","Despojado e confortável","Ousado e marcante","Romântico e delicado"], multi: false },
-  { id: "evita",        q: "O que você geralmente evita?",                 opts: ["Estampas muito chamativas","Peças muito estruturadas","Roupas muito justas","Peças muito largas","Cores muito neutras"], multi: true },
-  { id: "orcamento",    q: "Sua faixa de investimento por peça?",          opts: ["Até R$100","R$100–R$300","R$300–R$600","R$600–R$1.000","Acima de R$1.000"], multi: false },
-  { id: "cores",        q: "Quais tons te atraem mais?",                   opts: ["Neutros (preto, branco, bege)","Terrosos (marrom, caramelo, caqui)","Frios (azul, verde, cinza)","Quentes (vermelho, laranja, amarelo)","Pastéis e suaves"], multi: true },
-];
-
-// ── Prompts ────────────────────────────────────────────────────────────
-const systemPromptChat = (profile) => `Você é a assistente de moda do Método Madu de @dudagiordanii. Ajuda mulheres a encontrarem peças e looks alinhados com sua identidade.
-
-PERFIL:
-- Ocasiões: ${profile?.ocasioes?.join(", ") || "variadas"}
-- Estilo: ${profile?.personalidade || "não definido"}
-- Evita: ${profile?.evita?.join(", ") || "nada específico"}
-- Orçamento: ${profile?.orcamento || "flexível"}
-- Cores: ${profile?.cores?.join(", ") || "variadas"}
-
-Responda com:
-1. Breve análise do pedido à luz do perfil
-2. 3–5 sugestões de peças REAIS com: nome, marca/loja, preço estimado, por que combina
-3. Uma dica de estilo no espírito do Método Madu
-Tom: íntimo, como uma amiga entendida. Nunca genérico.`;
-
-const systemPromptLooks = (profile, ctx) => `Você é a curadoria visual do Método Madu. Gere looks para a cliente.
-
-PERFIL:
-- Estilo: ${profile?.personalidade || "variado"}
-- Ocasiões: ${profile?.ocasioes?.join(", ") || "variadas"}
-- Evita: ${profile?.evita?.join(", ") || "nada específico"}
-- Cores: ${profile?.cores?.join(", ") || "variadas"}
-- Orçamento: ${profile?.orcamento || "flexível"}
-${ctx ? `- Contexto: ${ctx}` : ""}
-
-RESPONDA APENAS EM JSON válido, sem markdown:
-{"looks":[{"title":"Nome do look","description":"Descrição curta (2 linhas)","pecas":["Peça 1 + onde encontrar","Peça 2 + onde encontrar","Peça 3 + onde encontrar"],"searchQuery":"1 a 3 palavras em inglês para buscar no Unsplash (ex: blazer, casual dress, elegant outfit)","tags":["tag1","tag2","tag3"],"why":"Por que combina com o perfil (1 frase)"}]}
-Gere exatamente 6 looks. searchQuery: apenas 1-3 palavras simples em inglês.`;
-
-// ── API Claude ─────────────────────────────────────────────────────────
-const callClaude = async (system, messages, useSearch = false) => {
-  const body = {
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 1000,
-    system,
-    messages,
-  };
-  if (useSearch) body.tools = [{ type: "web_search_20250305", name: "web_search" }];
-  const res = await fetch("/.netlify/functions/claude", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json();
-  return data.content?.filter(b => b.type === "text").map(b => b.text).join("\n") || "";
-};
-
-const getImageUrl = (searchQuery) => {
-  if (!searchQuery) return null;
-  const q = encodeURIComponent(searchQuery + " fashion");
-  return `https://source.unsplash.com/400x500/?${q}`;
-};
-
-// ── Components ─────────────────────────────────────────────────────────
-const Logo = ({ small }) => (
-  <div style={{ display:"flex", alignItems:"center", gap: small ? 8 : 12 }}>
-    <div style={{ width: small?28:36, height: small?28:36, background: C.caramelo, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Georgia,serif", fontSize: small?13:16, fontWeight:"bold", color: C.bege, flexShrink:0 }}>M</div>
-    <div>
-      <div style={{ fontFamily:"Georgia,serif", fontSize: small?11:14, fontWeight:"bold", color: C.marrom, letterSpacing:2 }}>MÉTODO MADU</div>
-      {!small && <div style={{ fontFamily:"Georgia,serif", fontSize:9, color: C.cinza, letterSpacing:1, fontStyle:"italic" }}>seu guarda-roupa inteligente</div>}
+  <!-- ASSISTENTE TAB -->
+  <div id="tab-assistente" style="flex:1;display:flex;flex-direction:column">
+    <div id="profile-strip"></div>
+    <div id="chat-area" style="flex:1;overflow-y:auto;padding:0 16px 16px;max-width:700px;width:100%;margin:0 auto">
+      <div id="messages"></div>
+      <div id="suggestions" class="hidden">
+        <div class="sug-label">SUGESTÕES</div>
+        <button class="sug-btn" onclick="sendSuggestion(this)">Quero uma calça elegante para o trabalho</button>
+        <button class="sug-btn" onclick="sendSuggestion(this)">Me ajuda com um look para evento social</button>
+        <button class="sug-btn" onclick="sendSuggestion(this)">Quero renovar meu básico</button>
+        <button class="sug-btn" onclick="sendSuggestion(this)">Preciso de um blazer versátil</button>
+      </div>
+    </div>
+    <div id="chat-input-area">
+      <div class="input-row">
+        <textarea id="chat-input" rows="2" placeholder="O que você está procurando?"></textarea>
+        <button id="send-btn" disabled onclick="sendChat()">BUSCAR →</button>
+      </div>
     </div>
   </div>
-);
 
-const Pill = ({ label, selected, onClick }) => (
-  <button onClick={onClick} style={{ padding:"7px 14px", border:`1.5px solid ${selected ? C.caramelo : C.begeCard}`, background: selected ? C.caramelo : C.branco, color: selected ? C.branco : C.marrom, fontFamily:"Georgia,serif", fontSize:11, cursor:"pointer", borderRadius:2, transition:"all .2s" }}>{label}</button>
-);
-
-// ── ONBOARDING ─────────────────────────────────────────────────────────
-const Onboarding = ({ onComplete }) => {
-  const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState({});
-  const q = STYLE_QUESTIONS[step];
-
-  const toggle = (opt) => {
-    if (q.multi) {
-      const cur = answers[q.id] || [];
-      setAnswers({ ...answers, [q.id]: cur.includes(opt) ? cur.filter(x => x !== opt) : [...cur, opt] });
-    } else setAnswers({ ...answers, [q.id]: opt });
-  };
-
-  const canNext = q.multi ? (answers[q.id] || []).length > 0 : !!answers[q.id];
-
-  return (
-    <div style={{ minHeight:"100vh", background: C.bege, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24 }}>
-      <div style={{ width:"100%", maxWidth:540 }}>
-        <Logo />
-        <div style={{ marginTop:40 }}>
-          <div style={{ display:"flex", gap:5, marginBottom:28 }}>
-            {STYLE_QUESTIONS.map((_,i) => <div key={i} style={{ flex:1, height:3, background: i<=step ? C.caramelo : C.begeCard, transition:"background .3s" }} />)}
-          </div>
-          <div style={{ fontSize:10, color: C.cinza, letterSpacing:2, marginBottom:10, fontFamily:"Arial,sans-serif", fontWeight:"bold" }}>PERGUNTA {step+1} DE {STYLE_QUESTIONS.length}</div>
-          <h2 style={{ fontSize:20, color: C.marrom, lineHeight:1.45, marginBottom:24, fontWeight:"normal" }}>{q.q}</h2>
-          <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:28 }}>
-            {q.opts.map(opt => <Pill key={opt} label={opt} selected={q.multi ? (answers[q.id]||[]).includes(opt) : answers[q.id]===opt} onClick={() => toggle(opt)} />)}
-          </div>
-          {q.multi && <div style={{ fontSize:10, color: C.cinza, marginBottom:16 }}>Você pode escolher mais de uma opção</div>}
-        </div>
-        <button onClick={() => step < STYLE_QUESTIONS.length-1 ? setStep(step+1) : onComplete(answers)} disabled={!canNext}
-          style={{ width:"100%", padding:16, background: canNext ? C.marrom : C.begeCard, color: canNext ? C.bege : C.cinza, border:"none", fontFamily:"Georgia,serif", fontSize:13, letterSpacing:2, cursor: canNext ? "pointer" : "default" }}>
-          {step < STYLE_QUESTIONS.length-1 ? "CONTINUAR →" : "CRIAR MEU PERFIL →"}
-        </button>
+  <!-- LOOKS TAB -->
+  <div id="tab-looks" class="hidden" style="flex:1;overflow-y:auto;padding:16px;max-width:900px;width:100%;margin:0 auto">
+    <div class="looks-header">
+      <h2>Curadoria de Looks</h2>
+      <p>Looks gerados especialmente para o seu perfil de estilo</p>
+    </div>
+    <div class="looks-ctx-row">
+      <div style="flex:1">
+        <div class="ctx-label">CONTEXTO (OPCIONAL)</div>
+        <input id="looks-ctx" placeholder="ex: looks para trabalho, evento de casamento, fim de semana...">
+      </div>
+      <button id="gen-btn" onclick="generateLooks()">✨ GERAR LOOKS</button>
+    </div>
+    <div id="looks-content">
+      <div class="looks-empty">
+        <div class="looks-empty-icon">✨</div>
+        <p style="font-family:Georgia,serif;font-size:14px;color:#4A2C17;margin-bottom:6px">Sua curadoria personalizada</p>
+        <p style="font-family:Georgia,serif;font-size:12px;color:#9C8166;font-style:italic">Clique em "Gerar Looks" para ver looks criados para o seu perfil</p>
       </div>
     </div>
-  );
-};
+  </div>
 
-// ── LOOK CARD ──────────────────────────────────────────────────────────
-const LookCard = ({ look, boards, onSave, saved }) => {
-  const [showSave, setShowSave] = useState(false);
-  const [imgError, setImgError] = useState(false);
-  const [imgLoaded, setImgLoaded] = useState(false);
-  const imgSrc = getImageUrl(look.searchQuery);
-
-  return (
-    <div style={{ background: C.branco, border:`1px solid ${C.begeCard}`, overflow:"hidden", position:"relative" }}
-      onMouseEnter={() => setShowSave(true)} onMouseLeave={() => setShowSave(false)}>
-      <div style={{ height:240, background:`linear-gradient(135deg, ${C.begeCard}, ${C.begeDark})`, position:"relative", overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center" }}>
-        {!imgLoaded && !imgError && (
-          <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:8 }}>
-            <div style={{ width:22, height:22, border:`2px solid ${C.begeCard}`, borderTop:`2px solid ${C.caramelo}`, borderRadius:"50%", animation:"spin 1s linear infinite" }} />
-            <div style={{ fontSize:10, color: C.cinza, fontStyle:"italic" }}>buscando look...</div>
-          </div>
-        )}
-        {imgSrc && !imgError ? (
-          <img src={imgSrc} alt={look.title}
-            style={{ width:"100%", height:"100%", objectFit:"cover", opacity: imgLoaded ? 1 : 0, transition:"opacity .3s" }}
-            onLoad={() => setImgLoaded(true)}
-            onError={() => { setImgError(true); setImgLoaded(true); }} />
-        ) : imgError ? (
-          <div style={{ textAlign:"center", padding:16 }}>
-            <div style={{ fontSize:28, marginBottom:8 }}>👗</div>
-            <div style={{ fontFamily:"Georgia,serif", fontSize:11, color: C.cinza, fontStyle:"italic" }}>{look.title}</div>
-          </div>
-        ) : null}
-
-        {showSave && (
-          <div style={{ position:"absolute", inset:0, background:"rgba(74,44,23,.65)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <div style={{ background: C.branco, width:160, borderRadius:2, overflow:"hidden" }}>
-              <div style={{ fontSize:9, color: C.cinza, letterSpacing:2, fontFamily:"Arial,sans-serif", fontWeight:"bold", padding:"8px 12px 6px", borderBottom:`1px solid ${C.begeCard}` }}>SALVAR EM</div>
-              {boards.map(b => (
-                <button key={b.id} onClick={() => { onSave(b.id, look); setShowSave(false); }}
-                  style={{ display:"block", width:"100%", padding:"8px 12px", textAlign:"left", border:"none", background:"none", fontFamily:"Georgia,serif", fontSize:12, color: C.marrom, cursor:"pointer", borderBottom:`1px solid ${C.begeCard}` }}>
-                  {b.icon} {b.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        {saved && <div style={{ position:"absolute", top:8, right:8, background: C.caramelo, color: C.branco, fontSize:9, padding:"3px 7px", fontFamily:"Arial,sans-serif", letterSpacing:1 }}>SALVO</div>}
-      </div>
-      <div style={{ padding:"12px 14px" }}>
-        <div style={{ fontFamily:"Georgia,serif", fontSize:13, fontWeight:"bold", color: C.marrom, marginBottom:4 }}>{look.title}</div>
-        <div style={{ fontFamily:"Georgia,serif", fontSize:11, color: C.cinza, lineHeight:1.5, marginBottom:6, fontStyle:"italic" }}>{look.description}</div>
-        <div style={{ fontFamily:"Georgia,serif", fontSize:10, color: C.caramelo, fontStyle:"italic", marginBottom:8 }}>{look.why}</div>
-        <div style={{ fontSize:10, color: C.cinza, lineHeight:1.6 }}>
-          {(look.pecas||[]).map((p,i) => <div key={i}>· {p}</div>)}
+  <!-- BOARDS TAB -->
+  <div id="tab-boards" class="hidden" style="flex:1;overflow-y:auto;padding:16px;max-width:900px;width:100%;margin:0 auto">
+    <div id="boards-list">
+      <div class="boards-header">
+        <div>
+          <h2 style="font-size:18px;font-weight:bold;color:#4A2C17;margin-bottom:4px">Meus Boards</h2>
+          <p style="font-size:12px;color:#9C8166;font-style:italic">Suas coleções de looks favoritos</p>
         </div>
-        <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:8 }}>
-          {(look.tags||[]).map(t => <span key={t} style={{ fontSize:9, color: C.cinza, background: C.bege, padding:"2px 7px", fontFamily:"Arial,sans-serif" }}>#{t}</span>)}
-        </div>
+        <button class="btn-new-board" onclick="toggleNewBoard()">+ NOVA PASTA</button>
       </div>
+      <div id="new-board-row" class="new-board-row hidden">
+        <input id="new-board-input" placeholder="Nome da pasta...">
+        <button class="btn-create" onclick="createBoard()">CRIAR</button>
+        <button class="btn-cancel" onclick="toggleNewBoard()">CANCELAR</button>
+      </div>
+      <div class="boards-grid" id="boards-grid"></div>
     </div>
-  );
-};
-
-const BoardItem = ({ look, onRemove }) => {
-  const [imgError, setImgError] = useState(false);
-  const imgSrc = getImageUrl(look.searchQuery);
-  return (
-    <div style={{ background: C.branco, border:`1px solid ${C.begeCard}`, overflow:"hidden", position:"relative" }}>
-      <div style={{ height:140, background:`linear-gradient(135deg, ${C.begeCard}, ${C.begeDark})`, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
-        {imgSrc && !imgError
-          ? <img src={imgSrc} alt={look.title} style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={() => setImgError(true)} />
-          : <div style={{ fontSize:24 }}>👗</div>}
-        <button onClick={() => onRemove(look)} style={{ position:"absolute", top:6, right:6, width:22, height:22, border:"none", background:"rgba(74,44,23,.7)", color: C.bege, cursor:"pointer", fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", borderRadius:"50%" }}>×</button>
+    <div id="board-detail" class="hidden">
+      <div class="board-detail-header">
+        <button class="board-back" onclick="closeBoard()">← Boards</button>
+        <span class="board-detail-title" id="board-detail-title"></span>
+        <span class="board-detail-count" id="board-detail-count"></span>
       </div>
-      <div style={{ padding:"8px 10px" }}>
-        <div style={{ fontFamily:"Georgia,serif", fontSize:11, fontWeight:"bold", color: C.marrom }}>{look.title}</div>
-        <div style={{ fontFamily:"Georgia,serif", fontSize:10, color: C.cinza, fontStyle:"italic", marginTop:2 }}>{(look.description||"").slice(0,50)}...</div>
-      </div>
+      <div id="board-detail-content"></div>
     </div>
-  );
-};
+  </div>
+</div>
 
-// ── MAIN APP ───────────────────────────────────────────────────────────
-const App = () => {
-  const [screen, setScreen] = useState("loading");
-  const [profile, setProfile] = useState(null);
-  const [tab, setTab] = useState("assistente");
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
-  const [looks, setLooks] = useState([]);
-  const [looksLoading, setLooksLoading] = useState(false);
-  const [looksContext, setLooksContext] = useState("");
-  const [boards, setBoards] = useState(DEFAULT_BOARDS);
-  const [activeBoard, setActiveBoard] = useState(null);
-  const [newBoardName, setNewBoardName] = useState("");
-  const [showNewBoard, setShowNewBoard] = useState(false);
-  const [savedIds, setSavedIds] = useState(new Set());
-  const bottomRef = useRef(null);
+<script>
+// ── Data ────────────────────────────────────────────────────────────────
+const QUESTIONS = [
+  { id:"ocasioes", q:"Para quais ocasiões você mais se veste?", opts:["Trabalho / Corporativo","Casual / Dia a dia","Social / Eventos","Academia / Ativo","Misto de tudo"], multi:true },
+  { id:"personalidade", q:"Como você descreveria seu estilo ideal?", opts:["Clássico e atemporal","Moderno e estruturado","Despojado e confortável","Ousado e marcante","Romântico e delicado"], multi:false },
+  { id:"evita", q:"O que você geralmente evita?", opts:["Estampas muito chamativas","Peças muito estruturadas","Roupas muito justas","Peças muito largas","Cores muito neutras"], multi:true },
+  { id:"orcamento", q:"Sua faixa de investimento por peça?", opts:["Até R$100","R$100–R$300","R$300–R$600","R$600–R$1.000","Acima de R$1.000"], multi:false },
+  { id:"cores", q:"Quais tons te atraem mais?", opts:["Neutros (preto, branco, bege)","Terrosos (marrom, caramelo, caqui)","Frios (azul, verde, cinza)","Quentes (vermelho, laranja, amarelo)","Pastéis e suaves"], multi:true },
+];
 
-  useEffect(() => {
-    const p = loadStorage("madu-profile");
-    const b = loadStorage("madu-boards");
-    const m = loadStorage("madu-messages");
-    if (p) setProfile(p);
-    if (b) setBoards(b);
-    if (m) setMessages(m);
-    setScreen(p ? "app" : "onboarding");
-  }, []);
+const DEFAULT_BOARDS = [
+  { id:"trabalho", name:"Trabalho", icon:"💼", items:[] },
+  { id:"social", name:"Social & Eventos", icon:"✨", items:[] },
+  { id:"casual", name:"Casual / Dia a dia", icon:"☀️", items:[] },
+  { id:"inspiracao", name:"Inspiração", icon:"🌿", items:[] },
+];
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior:"smooth" }); }, [messages, chatLoading]);
+let profile = null;
+let messages = [];
+let boards = [...DEFAULT_BOARDS];
+let savedIds = new Set();
+let activeBoard = null;
+let step = 0;
+let answers = {};
+let chatLoading = false;
+let looksLoading = false;
 
-  const completeOnboarding = (answers) => {
-    setProfile(answers);
-    saveStorage("madu-profile", answers);
-    const welcome = { role:"assistant", content:`Perfil criado! 🤎\n\nJá conheço seu estilo — ${answers.personalidade?.toLowerCase()}, com preferência por ${(answers.cores||[]).join(" e ").toLowerCase() || "tons variados"}.\n\nO que você está procurando hoje?` };
-    setMessages([welcome]);
-    saveStorage("madu-messages", [welcome]);
-    setScreen("app");
-  };
+// ── Storage ─────────────────────────────────────────────────────────────
+const load = k => { try { const v=localStorage.getItem(k); return v?JSON.parse(v):null; } catch{return null;} };
+const save = (k,v) => { try { localStorage.setItem(k,JSON.stringify(v)); } catch{} };
 
-  const sendChat = async (text) => {
-    const msg = text || input.trim();
-    if (!msg || chatLoading) return;
-    setInput("");
-    const newMsgs = [...messages, { role:"user", content:msg }];
-    setMessages(newMsgs);
-    setChatLoading(true);
-    try {
-      const resp = await callClaude(systemPromptChat(profile), newMsgs.map(m => ({ role:m.role, content:m.content })), true);
-      const updated = [...newMsgs, { role:"assistant", content:resp }];
-      setMessages(updated);
-      saveStorage("madu-messages", updated);
-    } catch {
-      setMessages([...newMsgs, { role:"assistant", content:"Ops, tive um problema. Tente novamente." }]);
-    } finally { setChatLoading(false); }
-  };
+// ── API ─────────────────────────────────────────────────────────────────
+async function callAPI(body) {
+  const res = await fetch('/.netlify/functions/claude', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || 'API error');
+  return data.content?.filter(b=>b.type==='text').map(b=>b.text).join('\n') || '';
+}
 
-  const generateLooks = async () => {
-    setLooksLoading(true);
-    setLooks([]);
-    try {
-      const raw = await callClaude(systemPromptLooks(profile, looksContext), [{ role:"user", content: looksContext || "Gere looks variados para o meu perfil de estilo." }]);
-      const clean = raw.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(clean);
-      const looksWithId = (parsed.looks||[]).map(l => ({ ...l, id: Date.now() + Math.random() }));
-      setLooks(looksWithId);
-    } catch(e) { console.error(e); }
-    finally { setLooksLoading(false); }
-  };
+function getImageUrl(q) {
+  if (!q) return null;
+  return `https://source.unsplash.com/400x500/?${encodeURIComponent(q+' fashion')}`;
+}
 
-  const saveLook = (boardId, look) => {
-    const updated = boards.map(b => b.id === boardId ? { ...b, items:[...b.items, look] } : b);
-    setBoards(updated);
-    setSavedIds(new Set([...savedIds, look.id]));
-    saveStorage("madu-boards", updated);
-  };
+// ── Onboarding ───────────────────────────────────────────────────────────
+function renderStep() {
+  const q = QUESTIONS[step];
+  // Progress
+  const prog = document.getElementById('progress');
+  prog.innerHTML = QUESTIONS.map((_,i)=>`<div class="prog-bar ${i<=step?'done':''}"></div>`).join('');
+  document.getElementById('step-label').textContent = `PERGUNTA ${step+1} DE ${QUESTIONS.length}`;
+  document.getElementById('step-q').textContent = q.q;
+  // Pills
+  const pills = document.getElementById('pills');
+  const cur = answers[q.id] || (q.multi ? [] : null);
+  pills.innerHTML = q.opts.map(opt => {
+    const sel = q.multi ? cur.includes(opt) : cur===opt;
+    return `<button class="pill ${sel?'selected':''}" onclick="togglePill('${opt}')">${opt}</button>`;
+  }).join('');
+  // Multi hint
+  document.getElementById('multi-hint').classList.toggle('hidden', !q.multi);
+  // Next btn
+  const can = q.multi ? (answers[q.id]||[]).length>0 : !!answers[q.id];
+  const btn = document.getElementById('btn-next');
+  btn.disabled = !can;
+  btn.textContent = step < QUESTIONS.length-1 ? 'CONTINUAR →' : 'CRIAR MEU PERFIL →';
+}
 
-  const removeLook = (boardId, look) => {
-    const updated = boards.map(b => b.id === boardId ? { ...b, items: b.items.filter(i => i.id !== look.id) } : b);
-    setBoards(updated);
-    saveStorage("madu-boards", updated);
-  };
+function togglePill(opt) {
+  const q = QUESTIONS[step];
+  if (q.multi) {
+    const cur = answers[q.id] || [];
+    answers[q.id] = cur.includes(opt) ? cur.filter(x=>x!==opt) : [...cur, opt];
+  } else {
+    answers[q.id] = opt;
+  }
+  renderStep();
+}
 
-  const createBoard = () => {
-    if (!newBoardName.trim()) return;
-    const nb = { id: Date.now().toString(), name: newBoardName.trim(), icon:"📁", items:[] };
-    const updated = [...boards, nb];
-    setBoards(updated);
-    saveStorage("madu-boards", updated);
-    setNewBoardName(""); setShowNewBoard(false);
-  };
+document.getElementById('btn-next').addEventListener('click', () => {
+  if (step < QUESTIONS.length-1) { step++; renderStep(); }
+  else { finishOnboarding(); }
+});
 
-  if (screen === "loading") return <div style={{ minHeight:"100vh", background: C.bege, display:"flex", alignItems:"center", justifyContent:"center" }}><Logo /></div>;
-  if (screen === "onboarding") return <Onboarding onComplete={completeOnboarding} />;
+function finishOnboarding() {
+  profile = {...answers};
+  save('madu-profile', profile);
+  const p = profile.personalidade?.toLowerCase() || 'variado';
+  const c = (profile.cores||[]).join(' e ').toLowerCase() || 'tons variados';
+  const welcome = { role:'assistant', content:`Perfil criado! 🤎\n\nJá conheço seu estilo — ${p}, com preferência por ${c}.\n\nO que você está procurando hoje?` };
+  messages = [welcome];
+  save('madu-messages', messages);
+  showApp();
+}
 
-  const currentBoard = boards.find(b => b.id === activeBoard);
+function editProfile() {
+  step = 0; answers = profile ? {...profile} : {};
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('onboarding').classList.remove('hidden');
+  renderStep();
+}
 
-  return (
-    <div style={{ minHeight:"100vh", background: C.bege, display:"flex", flexDirection:"column" }}>
+// ── App ──────────────────────────────────────────────────────────────────
+function showApp() {
+  document.getElementById('onboarding').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('app').style.display = 'flex';
+  updateProfileStrip();
+  renderMessages();
+  renderBoards();
+}
 
-      {/* Header */}
-      <div style={{ background: C.branco, borderBottom:`1px solid ${C.begeCard}`, padding:"12px 20px", display:"flex", justifyContent:"space-between", alignItems:"center", position:"sticky", top:0, zIndex:20 }}>
-        <Logo small />
-        <div style={{ display:"flex", gap:4 }}>
-          {[["assistente","💬 Assistente"],["looks","✨ Looks"],["boards","📌 Boards"]].map(([id, label]) => (
-            <button key={id} onClick={() => setTab(id)}
-              style={{ padding:"7px 14px", border:"none", background: tab===id ? C.marrom : "none", color: tab===id ? C.bege : C.cinza, fontFamily:"Georgia,serif", fontSize:11, cursor:"pointer", borderRadius:2, letterSpacing:.5 }}>
-              {label}
-            </button>
-          ))}
-        </div>
-        <button onClick={() => setScreen("onboarding")} style={{ fontSize:10, color: C.cinza, background:"none", border:"none", cursor:"pointer", fontFamily:"Georgia,serif", textDecoration:"underline" }}>editar perfil</button>
-      </div>
+function updateProfileStrip() {
+  const strip = document.getElementById('profile-strip');
+  strip.textContent = `SEU PERFIL · ${profile?.personalidade||''} · ${profile?.orcamento||''}`;
+}
 
-      {/* ── ASSISTENTE ── */}
-      {tab === "assistente" && (
-        <div style={{ flex:1, display:"flex", flexDirection:"column" }}>
-          <div style={{ flex:1, overflowY:"auto", padding:"20px", maxWidth:700, width:"100%", margin:"0 auto" }}>
-            <div style={{ background: C.begeCard, borderLeft:`3px solid ${C.caramelo}`, padding:"10px 14px", marginBottom:16 }}>
-              <div style={{ fontSize:10, color: C.caramelo, letterSpacing:2, fontFamily:"Arial,sans-serif", fontWeight:"bold" }}>
-                SEU PERFIL · {profile?.personalidade} · {profile?.orcamento}
-              </div>
-            </div>
+function showTab(tab) {
+  ['assistente','looks','boards'].forEach(t => {
+    document.getElementById(`tab-${t}`).classList.toggle('hidden', t!==tab);
+  });
+  document.querySelectorAll('.tab').forEach((btn,i) => {
+    btn.classList.toggle('active', ['assistente','looks','boards'][i]===tab);
+  });
+}
 
-            {messages.map((msg, i) => (
-              <div key={i} style={{ display:"flex", justifyContent: msg.role==="user" ? "flex-end" : "flex-start", marginBottom:14, gap:8, alignItems:"flex-start" }}>
-                {msg.role === "assistant" && <div style={{ width:26, height:26, minWidth:26, background: C.caramelo, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Georgia,serif", fontSize:11, fontWeight:"bold", color: C.bege }}>M</div>}
-                <div style={{ maxWidth:"78%", background: msg.role==="user" ? C.marrom : C.branco, color: msg.role==="user" ? C.bege : C.marrom, padding:"12px 16px", fontFamily:"Georgia,serif", fontSize:12.5, lineHeight:1.7, border: msg.role!=="user" ? `1px solid ${C.begeCard}` : "none", whiteSpace:"pre-wrap" }}>
-                  {msg.content}
-                </div>
-              </div>
-            ))}
-
-            {chatLoading && (
-              <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:14 }}>
-                <div style={{ width:26, height:26, background: C.caramelo, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Georgia,serif", fontSize:11, fontWeight:"bold", color: C.bege }}>M</div>
-                <div style={{ background: C.branco, padding:"12px 16px", border:`1px solid ${C.begeCard}`, display:"flex", gap:4 }}>
-                  {[0,1,2].map(i => <div key={i} style={{ width:5, height:5, borderRadius:"50%", background: C.caramelo, animation:`pulse 1.2s ${i*.2}s infinite` }} />)}
-                </div>
-              </div>
-            )}
-
-            {messages.length === 1 && !chatLoading && (
-              <div style={{ marginTop:8 }}>
-                <div style={{ fontSize:9, color: C.cinza, letterSpacing:2, marginBottom:10, fontFamily:"Arial,sans-serif", fontWeight:"bold" }}>SUGESTÕES</div>
-                {["Quero uma calça elegante para o trabalho","Me ajuda com um look para evento social","Quero renovar meu básico","Preciso de um blazer versátil"].map(s => (
-                  <button key={s} onClick={() => sendChat(s)}
-                    style={{ display:"block", width:"100%", background: C.branco, border:`1px solid ${C.begeCard}`, borderLeft:`3px solid ${C.caramelo2}`, padding:"10px 14px", textAlign:"left", fontFamily:"Georgia,serif", fontSize:12, color: C.marrom, cursor:"pointer", marginBottom:6 }}>
-                    {s}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div ref={bottomRef} />
-          </div>
-
-          <div style={{ background: C.branco, borderTop:`1px solid ${C.begeCard}`, padding:"14px 20px", position:"sticky", bottom:0 }}>
-            <div style={{ maxWidth:700, margin:"0 auto", display:"flex", gap:10, alignItems:"flex-end" }}>
-              <textarea value={input} onChange={e => setInput(e.target.value)}
-                onKeyDown={e => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
-                placeholder="O que você está procurando?" rows={2}
-                style={{ flex:1, border:`1.5px solid ${C.begeCard}`, padding:"10px 14px", fontFamily:"Georgia,serif", fontSize:12.5, color: C.marrom, background: C.bege, resize:"none", lineHeight:1.5 }} />
-              <button onClick={() => sendChat()} disabled={!input.trim() || chatLoading}
-                style={{ padding:"10px 18px", height:52, background: input.trim() && !chatLoading ? C.marrom : C.begeCard, color: input.trim() && !chatLoading ? C.bege : C.cinza, border:"none", fontFamily:"Georgia,serif", fontSize:12, letterSpacing:1, cursor: input.trim() && !chatLoading ? "pointer" : "default", whiteSpace:"nowrap" }}>
-                {chatLoading ? "..." : "BUSCAR →"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── LOOKS ── */}
-      {tab === "looks" && (
-        <div style={{ flex:1, overflowY:"auto", padding:20, maxWidth:900, width:"100%", margin:"0 auto" }}>
-          <div style={{ marginBottom:20 }}>
-            <div style={{ fontSize:18, fontWeight:"bold", color: C.marrom, marginBottom:4 }}>Curadoria de Looks</div>
-            <div style={{ fontSize:12, color: C.cinza, fontStyle:"italic" }}>Looks gerados especialmente para o seu perfil de estilo</div>
-          </div>
-          <div style={{ display:"flex", gap:10, marginBottom:20, alignItems:"flex-end" }}>
-            <div style={{ flex:1 }}>
-              <div style={{ fontSize:9, color: C.cinza, letterSpacing:2, fontFamily:"Arial,sans-serif", fontWeight:"bold", marginBottom:6 }}>CONTEXTO (OPCIONAL)</div>
-              <input value={looksContext} onChange={e => setLooksContext(e.target.value)}
-                placeholder="ex: looks para trabalho, evento de casamento, fim de semana..."
-                style={{ width:"100%", border:`1.5px solid ${C.begeCard}`, padding:"10px 14px", fontFamily:"Georgia,serif", fontSize:12, color: C.marrom, background: C.branco }} />
-            </div>
-            <button onClick={generateLooks} disabled={looksLoading}
-              style={{ padding:"10px 20px", height:42, background: looksLoading ? C.begeCard : C.marrom, color: looksLoading ? C.cinza : C.bege, border:"none", fontFamily:"Georgia,serif", fontSize:12, letterSpacing:1, cursor: looksLoading ? "default" : "pointer", whiteSpace:"nowrap" }}>
-              {looksLoading ? "GERANDO..." : "✨ GERAR LOOKS"}
-            </button>
-          </div>
-
-          {looksLoading && (
-            <div style={{ textAlign:"center", padding:"60px 0" }}>
-              <div style={{ width:32, height:32, border:`3px solid ${C.begeCard}`, borderTop:`3px solid ${C.caramelo}`, borderRadius:"50%", animation:"spin 1s linear infinite", margin:"0 auto 16px" }} />
-              <div style={{ fontFamily:"Georgia,serif", fontSize:13, color: C.cinza, fontStyle:"italic" }}>Criando looks para o seu perfil...</div>
-            </div>
-          )}
-
-          {looks.length > 0 && (
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(240px, 1fr))", gap:16 }}>
-              {looks.map(look => <LookCard key={look.id} look={look} boards={boards} onSave={saveLook} saved={savedIds.has(look.id)} />)}
-            </div>
-          )}
-
-          {looks.length === 0 && !looksLoading && (
-            <div style={{ textAlign:"center", padding:"60px 20px", border:`2px dashed ${C.begeCard}` }}>
-              <div style={{ fontSize:36, marginBottom:12 }}>✨</div>
-              <div style={{ fontFamily:"Georgia,serif", fontSize:14, color: C.marrom, marginBottom:6 }}>Sua curadoria personalizada</div>
-              <div style={{ fontFamily:"Georgia,serif", fontSize:12, color: C.cinza, fontStyle:"italic" }}>Clique em "Gerar Looks" para ver looks criados para o seu perfil</div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── BOARDS ── */}
-      {tab === "boards" && (
-        <div style={{ flex:1, overflowY:"auto", padding:20, maxWidth:900, width:"100%", margin:"0 auto" }}>
-          {!activeBoard ? (
-            <>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end", marginBottom:20 }}>
-                <div>
-                  <div style={{ fontSize:18, fontWeight:"bold", color: C.marrom, marginBottom:4 }}>Meus Boards</div>
-                  <div style={{ fontSize:12, color: C.cinza, fontStyle:"italic" }}>Suas coleções de looks favoritos</div>
-                </div>
-                <button onClick={() => setShowNewBoard(!showNewBoard)}
-                  style={{ padding:"8px 16px", background: C.caramelo, color: C.branco, border:"none", fontFamily:"Georgia,serif", fontSize:11, letterSpacing:1, cursor:"pointer" }}>
-                  + NOVA PASTA
-                </button>
-              </div>
-
-              {showNewBoard && (
-                <div style={{ display:"flex", gap:10, marginBottom:20 }}>
-                  <input value={newBoardName} onChange={e => setNewBoardName(e.target.value)}
-                    onKeyDown={e => e.key==="Enter" && createBoard()}
-                    placeholder="Nome da pasta..." autoFocus
-                    style={{ flex:1, border:`1.5px solid ${C.caramelo}`, padding:"10px 14px", fontFamily:"Georgia,serif", fontSize:12, color: C.marrom, background: C.branco }} />
-                  <button onClick={createBoard} style={{ padding:"10px 16px", background: C.marrom, color: C.bege, border:"none", fontFamily:"Georgia,serif", fontSize:12, cursor:"pointer" }}>CRIAR</button>
-                  <button onClick={() => setShowNewBoard(false)} style={{ padding:"10px 16px", background:"none", color: C.cinza, border:`1px solid ${C.begeCard}`, fontFamily:"Georgia,serif", fontSize:12, cursor:"pointer" }}>CANCELAR</button>
-                </div>
-              )}
-
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(200px, 1fr))", gap:14 }}>
-                {boards.map(board => (
-                  <button key={board.id} onClick={() => setActiveBoard(board.id)}
-                    style={{ background: C.branco, border:`1px solid ${C.begeCard}`, padding:0, cursor:"pointer", textAlign:"left", overflow:"hidden" }}>
-                    <div style={{ height:100, background:`linear-gradient(135deg, ${C.begeCard}, ${C.begeDark})`, display:"flex", alignItems:"center", justifyContent:"center", position:"relative", overflow:"hidden" }}>
-                      {board.items.length > 0 ? (
-                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:2, width:"100%", height:"100%" }}>
-                          {board.items.slice(0,4).map((item,i) => (
-                            <div key={i} style={{ background: C.begeDark, overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                              {item.searchQuery
-                                ? <img src={getImageUrl(item.searchQuery)} style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e => e.target.style.display="none"} />
-                                : <span style={{ fontSize:16 }}>👗</span>}
-                            </div>
-                          ))}
-                        </div>
-                      ) : <div style={{ fontSize:32 }}>{board.icon}</div>}
-                      <div style={{ position:"absolute", bottom:6, right:8, fontSize:9, color: C.cinza, fontFamily:"Arial,sans-serif", background:"rgba(245,236,215,.85)", padding:"2px 6px" }}>{board.items.length} looks</div>
-                    </div>
-                    <div style={{ padding:"10px 12px" }}>
-                      <div style={{ fontFamily:"Georgia,serif", fontSize:13, fontWeight:"bold", color: C.marrom }}>{board.icon} {board.name}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20 }}>
-                <button onClick={() => setActiveBoard(null)} style={{ background:"none", border:"none", color: C.caramelo, cursor:"pointer", fontFamily:"Georgia,serif", fontSize:13, textDecoration:"underline" }}>← Boards</button>
-                <div style={{ fontSize:18, fontWeight:"bold", color: C.marrom }}>{currentBoard?.icon} {currentBoard?.name}</div>
-                <div style={{ fontSize:11, color: C.cinza, fontStyle:"italic" }}>{currentBoard?.items.length || 0} looks salvos</div>
-              </div>
-              {currentBoard?.items.length === 0 ? (
-                <div style={{ textAlign:"center", padding:"50px 20px", border:`2px dashed ${C.begeCard}` }}>
-                  <div style={{ fontSize:32, marginBottom:12 }}>{currentBoard?.icon}</div>
-                  <div style={{ fontFamily:"Georgia,serif", fontSize:14, color: C.marrom, marginBottom:6 }}>Pasta vazia</div>
-                  <div style={{ fontFamily:"Georgia,serif", fontSize:12, color: C.cinza, fontStyle:"italic", marginBottom:16 }}>Vá para a aba Looks e salve suas inspirações favoritas</div>
-                  <button onClick={() => setTab("looks")} style={{ padding:"10px 20px", background: C.marrom, color: C.bege, border:"none", fontFamily:"Georgia,serif", fontSize:12, cursor:"pointer", letterSpacing:1 }}>✨ VER LOOKS</button>
-                </div>
-              ) : (
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(180px, 1fr))", gap:12 }}>
-                  {currentBoard.items.map((look,i) => <BoardItem key={i} look={look} onRemove={(l) => removeLook(activeBoard, l)} />)}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
+// ── Chat ─────────────────────────────────────────────────────────────────
+function renderMessages() {
+  const el = document.getElementById('messages');
+  el.innerHTML = messages.map(m => `
+    <div class="msg ${m.role}">
+      ${m.role==='assistant'?'<div class="msg-avatar">M</div>':''}
+      <div class="msg-bubble">${escHtml(m.content)}</div>
     </div>
-  );
-};
+  `).join('');
+  // Suggestions
+  const sug = document.getElementById('suggestions');
+  sug.classList.toggle('hidden', messages.length !== 1);
+  // Scroll
+  el.scrollIntoView({behavior:'smooth',block:'end'});
+}
 
-ReactDOM.render(<App />, document.getElementById("root"));
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+function addTyping() {
+  const el = document.getElementById('messages');
+  const d = document.createElement('div');
+  d.className = 'msg assistant'; d.id = 'typing-msg';
+  d.innerHTML = `<div class="msg-avatar">M</div><div class="typing">${[0,1,2].map(i=>`<div class="dot" style="animation:pulse 1.2s ${i*.2}s infinite"></div>`).join('')}</div>`;
+  el.appendChild(d);
+  d.scrollIntoView({behavior:'smooth',block:'end'});
+}
+
+function removeTyping() {
+  const d = document.getElementById('typing-msg');
+  if (d) d.remove();
+}
+
+const chatInput = document.getElementById('chat-input');
+const sendBtn = document.getElementById('send-btn');
+chatInput.addEventListener('input', () => { sendBtn.disabled = !chatInput.value.trim() || chatLoading; });
+chatInput.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
+
+function sendSuggestion(btn) { chatInput.value = btn.textContent; sendChat(); }
+
+async function sendChat() {
+  const text = chatInput.value.trim();
+  if (!text || chatLoading) return;
+  chatInput.value = '';
+  sendBtn.disabled = true;
+  chatLoading = true;
+  messages.push({ role:'user', content:text });
+  renderMessages();
+  addTyping();
+  try {
+    const system = `Você é a assistente de moda do Método Madu de @dudagiordanii. Ajuda mulheres a encontrarem peças e looks alinhados com sua identidade.\n\nPERFIL:\n- Ocasiões: ${(profile?.ocasioes||[]).join(', ')}\n- Estilo: ${profile?.personalidade||'variado'}\n- Evita: ${(profile?.evita||[]).join(', ')}\n- Orçamento: ${profile?.orcamento||'flexível'}\n- Cores: ${(profile?.cores||[]).join(', ')}\n\nResponda com sugestões reais de peças com marca, preço estimado e onde encontrar. Tom íntimo, como uma amiga.`;
+    const resp = await callAPI({ model:'claude-sonnet-4-20250514', max_tokens:1000, system, messages: messages.map(m=>({role:m.role,content:m.content})) });
+    removeTyping();
+    messages.push({ role:'assistant', content:resp });
+    save('madu-messages', messages);
+    renderMessages();
+  } catch(e) {
+    removeTyping();
+    messages.push({ role:'assistant', content:'Ops, tive um problema. Tente novamente.' });
+    renderMessages();
+  } finally {
+    chatLoading = false;
+    sendBtn.disabled = !chatInput.value.trim();
+  }
+}
+
+// ── Looks ────────────────────────────────────────────────────────────────
+async function generateLooks() {
+  if (looksLoading) return;
+  looksLoading = true;
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true; btn.textContent = 'GERANDO...';
+  const ctx = document.getElementById('looks-ctx').value;
+  document.getElementById('looks-content').innerHTML = `<div class="looks-spinner"><div class="spinner"></div><p style="font-family:Georgia,serif;font-size:13px;color:#9C8166;font-style:italic">Criando looks para o seu perfil...</p></div>`;
+  try {
+    const system = `Você é a curadoria visual do Método Madu. RESPONDA APENAS EM JSON válido, sem markdown:\n{"looks":[{"title":"Nome","description":"2 linhas","pecas":["Peça 1 + onde","Peça 2 + onde","Peça 3 + onde"],"searchQuery":"1-3 palavras inglês para Unsplash (ex: blazer, casual dress)","tags":["t1","t2"],"why":"Por que combina (1 frase)"}]}\nPerfil: estilo ${profile?.personalidade}, cores ${(profile?.cores||[]).join(',')}, evita ${(profile?.evita||[]).join(',')}. ${ctx?'Contexto: '+ctx:''} Gere 6 looks.`;
+    const raw = await callAPI({ model:'claude-sonnet-4-20250514', max_tokens:1000, system, messages:[{role:'user',content:ctx||'Gere looks para meu perfil.'}] });
+    const clean = raw.replace(/```json|```/g,'').trim();
+    const data = JSON.parse(clean);
+    renderLooks(data.looks||[]);
+  } catch(e) {
+    document.getElementById('looks-content').innerHTML = `<div class="looks-empty"><p style="font-family:Georgia,serif;color:#9C8166">Erro ao gerar looks. Tente novamente.</p></div>`;
+  } finally {
+    looksLoading = false;
+    btn.disabled = false; btn.textContent = '✨ GERAR LOOKS';
+  }
+}
+
+function renderLooks(looks) {
+  if (!looks.length) {
+    document.getElementById('looks-content').innerHTML = `<div class="looks-empty"><div class="looks-empty-icon">✨</div><p>Nenhum look gerado. Tente novamente.</p></div>`;
+    return;
+  }
+  const grid = looks.map((look,i) => {
+    const id = `look-${Date.now()}-${i}`;
+    const imgUrl = look.searchQuery ? `https://source.unsplash.com/400x500/?${encodeURIComponent(look.searchQuery+' fashion')}` : null;
+    const pecas = (look.pecas||[]).map(p=>`<div>· ${p}</div>`).join('');
+    const tags = (look.tags||[]).map(t=>`<span class="look-tag">#${t}</span>`).join('');
+    const saveMenus = boards.map(b=>`<button class="save-menu-btn" onclick="saveLook('${b.id}','${id}',event)">${b.icon} ${b.name}</button>`).join('');
+    return `
+      <div class="look-card" id="${id}">
+        <div class="look-img">
+          ${imgUrl?`
+            <div class="look-img-loading" id="loading-${id}"><div class="look-img-spinner"></div><div class="look-img-text">buscando look...</div></div>
+            <img src="${imgUrl}" alt="${look.title}" style="opacity:0" onload="imgLoaded('${id}',this)" onerror="imgError('${id}',this)">
+          `:`<div class="look-img-fallback"><span>👗</span><div style="font-family:Georgia,serif;font-size:11px;color:#9C8166;font-style:italic">${look.title}</div></div>`}
+          <div class="look-save-overlay">
+            <div class="save-menu">
+              <div class="save-menu-title">SALVAR EM</div>
+              ${saveMenus}
+            </div>
+          </div>
+        </div>
+        <div class="look-body">
+          <div class="look-title">${look.title}</div>
+          <div class="look-desc">${look.description||''}</div>
+          <div class="look-why">${look.why||''}</div>
+          <div class="look-pecas">${pecas}</div>
+          <div class="look-tags">${tags}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  document.getElementById('looks-content').innerHTML = `<div class="looks-grid">${grid}</div>`;
+  // Store look data for saving
+  window._currentLooks = looks.map((l,i)=>({...l, id:`look-${Date.now()}-${i}`}));
+}
+
+function imgLoaded(id, img) {
+  const loading = document.getElementById(`loading-${id}`);
+  if (loading) loading.style.display='none';
+  img.style.opacity='1';
+}
+
+function imgError(id, img) {
+  const loading = document.getElementById(`loading-${id}`);
+  if (loading) loading.style.display='none';
+  const card = document.getElementById(id);
+  const imgDiv = card?.querySelector('.look-img');
+  if (imgDiv) {
+    imgDiv.querySelector('img').remove();
+    const fb = document.createElement('div');
+    fb.className='look-img-fallback';
+    fb.innerHTML='<span>👗</span>';
+    imgDiv.insertBefore(fb, imgDiv.querySelector('.look-save-overlay'));
+  }
+}
+
+function saveLook(boardId, lookId, event) {
+  event.stopPropagation();
+  const look = (window._currentLooks||[]).find(l=>l.id===lookId) || { title:lookId, description:'', searchQuery:'' };
+  boards = boards.map(b => b.id===boardId ? {...b, items:[...b.items, {...look, savedId:Date.now()}]} : b);
+  save('madu-boards', boards);
+  // Show saved tag
+  const card = document.getElementById(lookId);
+  if (card && !card.querySelector('.look-saved-tag')) {
+    const tag = document.createElement('div');
+    tag.className='look-saved-tag'; tag.textContent='SALVO';
+    card.querySelector('.look-img').appendChild(tag);
+  }
+  renderBoards();
+}
+
+// ── Boards ───────────────────────────────────────────────────────────────
+function renderBoards() {
+  const grid = document.getElementById('boards-grid');
+  grid.innerHTML = boards.map(b => {
+    const thumbItems = b.items.slice(0,4).map(item => {
+      const url = item.searchQuery ? `https://source.unsplash.com/200x200/?${encodeURIComponent(item.searchQuery+' fashion')}` : null;
+      return `<div class="board-thumb-cell">${url?`<img src="${url}" onerror="this.style.display='none'">`:'<span style="font-size:16px">👗</span>'}</div>`;
+    }).join('');
+    return `
+      <button class="board-card" onclick="openBoard('${b.id}')">
+        <div class="board-thumb">
+          ${b.items.length>0 ? `<div class="board-thumb-grid">${thumbItems}</div>` : `<div style="font-size:32px">${b.icon}</div>`}
+          <div class="board-count">${b.items.length} looks</div>
+        </div>
+        <div class="board-name">${b.icon} ${b.name}</div>
+      </button>
+    `;
+  }).join('');
+}
+
+function toggleNewBoard() {
+  document.getElementById('new-board-row').classList.toggle('hidden');
+  document.getElementById('new-board-input').focus();
+}
+
+function createBoard() {
+  const name = document.getElementById('new-board-input').value.trim();
+  if (!name) return;
+  boards.push({ id:Date.now().toString(), name, icon:'📁', items:[] });
+  save('madu-boards', boards);
+  document.getElementById('new-board-input').value='';
+  toggleNewBoard();
+  renderBoards();
+}
+
+document.getElementById('new-board-input').addEventListener('keydown', e => { if(e.key==='Enter') createBoard(); });
+
+function openBoard(id) {
+  activeBoard = id;
+  document.getElementById('boards-list').classList.add('hidden');
+  document.getElementById('board-detail').classList.remove('hidden');
+  renderBoardDetail();
+}
+
+function closeBoard() {
+  activeBoard = null;
+  document.getElementById('board-detail').classList.add('hidden');
+  document.getElementById('boards-list').classList.remove('hidden');
+}
+
+function renderBoardDetail() {
+  const b = boards.find(x=>x.id===activeBoard);
+  if (!b) return;
+  document.getElementById('board-detail-title').textContent = `${b.icon} ${b.name}`;
+  document.getElementById('board-detail-count').textContent = `${b.items.length} looks salvos`;
+  const content = document.getElementById('board-detail-content');
+  if (!b.items.length) {
+    content.innerHTML = `<div class="board-empty"><div class="board-empty-icon">${b.icon}</div><h3>Pasta vazia</h3><p>Vá para a aba Looks e salve suas inspirações favoritas</p><button class="btn-see-looks" onclick="showTab('looks')">✨ VER LOOKS</button></div>`;
+  } else {
+    const items = b.items.map((item,i) => {
+      const url = item.searchQuery ? `https://source.unsplash.com/400x500/?${encodeURIComponent(item.searchQuery+' fashion')}` : null;
+      return `
+        <div class="board-item">
+          <div class="board-item-img">
+            ${url?`<img src="${url}" onerror="this.style.display='none'">`:'<span style="font-size:24px">👗</span>'}
+            <button class="board-item-remove" onclick="removeLook('${b.id}','${item.savedId}')">×</button>
+          </div>
+          <div class="board-item-body">
+            <div class="board-item-title">${item.title||''}</div>
+            <div class="board-item-desc">${(item.description||'').slice(0,50)}...</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    content.innerHTML = `<div class="board-items-grid">${items}</div>`;
+  }
+}
+
+function removeLook(boardId, savedId) {
+  boards = boards.map(b => b.id===boardId ? {...b, items:b.items.filter(i=>i.savedId!=savedId)} : b);
+  save('madu-boards', boards);
+  renderBoardDetail();
+  renderBoards();
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────
+(function init() {
+  const p = load('madu-profile');
+  const b = load('madu-boards');
+  const m = load('madu-messages');
+  if (b) boards = b;
+  if (m) messages = m;
+  if (p) {
+    profile = p;
+    answers = {...p};
+    showApp();
+  } else {
+    renderStep();
+  }
+})();
 </script>
 </body>
 </html>
