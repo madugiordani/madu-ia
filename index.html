@@ -433,7 +433,7 @@ async function sendChat() {
   addTyping();
   try {
     const system = `Você é a assistente de moda do Método Madu de @dudagiordanii. Ajuda mulheres a encontrarem peças e looks alinhados com sua identidade.\n\nPERFIL:\n- Ocasiões: ${(profile?.ocasioes||[]).join(', ')}\n- Estilo: ${profile?.personalidade||'variado'}\n- Evita: ${(profile?.evita||[]).join(', ')}\n- Orçamento: ${profile?.orcamento||'flexível'}\n- Cores: ${(profile?.cores||[]).join(', ')}\n\nResponda com sugestões reais de peças com marca, preço estimado e onde encontrar. Tom íntimo, como uma amiga.`;
-    const resp = await callAPI({ model:'claude-sonnet-4-20250514', max_tokens:1000, system, messages: messages.map(m=>({role:m.role,content:m.content})) });
+    const resp = await callAPI({ model:'claude-3-5-sonnet-20241022', max_tokens:1000, system, messages: messages.map(m=>({role:m.role,content:m.content})) });
     removeTyping();
     messages.push({ role:'assistant', content:resp });
     save('madu-messages', messages);
@@ -458,7 +458,7 @@ async function generateLooks() {
   document.getElementById('looks-content').innerHTML = `<div class="looks-spinner"><div class="spinner"></div><p style="font-family:Georgia,serif;font-size:13px;color:#9C8166;font-style:italic">Criando looks para o seu perfil...</p></div>`;
   try {
     const system = `Você é a curadoria visual do Método Madu. RESPONDA APENAS EM JSON válido, sem markdown:\n{"looks":[{"title":"Nome","description":"2 linhas","pecas":["Peça 1 + onde","Peça 2 + onde","Peça 3 + onde"],"searchQuery":"1-3 palavras inglês para Unsplash (ex: blazer, casual dress)","tags":["t1","t2"],"why":"Por que combina (1 frase)"}]}\nPerfil: estilo ${profile?.personalidade}, cores ${(profile?.cores||[]).join(',')}, evita ${(profile?.evita||[]).join(',')}. ${ctx?'Contexto: '+ctx:''} Gere 6 looks.`;
-    const raw = await callAPI({ model:'claude-sonnet-4-20250514', max_tokens:1000, system, messages:[{role:'user',content:ctx||'Gere looks para meu perfil.'}] });
+    const raw = await callAPI({ model:'claude-3-5-sonnet-20241022', max_tokens:1000, system, messages:[{role:'user',content:ctx||'Gere looks para meu perfil.'}] });
     const clean = raw.replace(/```json|```/g,'').trim();
     const data = JSON.parse(clean);
     renderLooks(data.looks||[]);
