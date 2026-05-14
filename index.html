@@ -283,7 +283,7 @@ const save = (k,v) => { try { localStorage.setItem(k,JSON.stringify(v)); } catch
 
 // ── API ─────────────────────────────────────────────────────────────────
 async function callAPI(body) {
-  const res = await fetch('/api/claude', {
+  const res = await fetch('https://madu-ia.onrender.com/api/claude', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
